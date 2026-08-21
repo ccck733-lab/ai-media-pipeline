@@ -154,6 +154,71 @@ function setEnvBadge() {
   badge.textContent = isLocal ? "本地预览" : location.host;
 }
 
+// ===== 一键生成（调后端 API）=====
+function getApiBase() {
+  const q = new URLSearchParams(location.search).get("api");
+  if (q) return q.replace(/\/$/, "");
+  return ""; // 同域；线上改为后端 Worker 地址（如 https://ai-media-worker.xxx.workers.dev）
+}
+
+function fillGenAccount() {
+  const sel = document.getElementById("gen-account");
+  Object.keys(ACCOUNTS).forEach((k) => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = k;
+    sel.appendChild(o);
+  });
+}
+
+let genTimer = null;
+function pollJob(jobId) {
+  const base = getApiBase();
+  fetch(`${base}/api/job/${jobId}`).then((r) => r.json()).then((j) => {
+    const st = document.getElementById("gen-state");
+    st.textContent = `状态：${j.status}`;
+    st.className = "gen-state " + (j.status || "");
+    document.getElementById("gen-log").textContent = j.log_tail || "";
+    if (j.status === "done" || j.status === "failed") {
+      clearInterval(genTimer);
+      document.getElementById("gen-btn").disabled = false;
+      const v = document.getElementById("gen-video");
+      if (j.videos && j.videos.length) {
+        v.innerHTML = `<video src="${base}/api/file?path=${encodeURIComponent(j.videos[0].path)}" controls></video>`;
+      } else if (j.status === "done") {
+        v.innerHTML = `<p class="hint">流程跑完，但本次无视频产物（视频渲染需后端装好 Remotion/ffmpeg 并开启 RENDER_VIDEO）。可在“账号配置/命令中心”检查各步产出。</p>`;
+      }
+      return;
+    }
+  }).catch((e) => {
+    document.getElementById("gen-log").textContent = "轮询失败：" + e;
+  });
+}
+
+function startGenerate() {
+  const base = getApiBase();
+  const account = document.getElementById("gen-account").value;
+  const steps = document.getElementById("gen-steps").value;
+  const topic = document.getElementById("gen-topic").value.trim();
+  document.getElementById("gen-btn").disabled = true;
+  const st = document.getElementById("gen-state");
+  st.textContent = "提交中…";
+  st.className = "gen-state running";
+  document.getElementById("gen-video").innerHTML = "";
+  fetch(`${base}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account, steps, topic: topic || null })
+  }).then((r) => r.json()).then((d) => {
+    if (!d.job_id) throw new Error("未返回 job_id");
+    genTimer = setInterval(() => pollJob(d.job_id), 2000);
+    pollJob(d.job_id);
+  }).catch((e) => {
+    st.textContent = "提交失败：" + e.message;
+    st.className = "gen-state failed";
+    document.getElementById("gen-btn").disabled = false;
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderPipelineMap();
   renderAccounts();
@@ -162,6 +227,8 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCmd();
   updateConfig();
   setEnvBadge();
+  fillGenAccount();
+  document.getElementById("gen-btn").addEventListener("click", startGenerate);
 
   document.getElementById("account-select").addEventListener("change", () => { updateCmd(); updateConfig(); });
   document.getElementById("step-select").addEventListener("change", updateCmd);

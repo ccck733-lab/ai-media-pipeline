@@ -83,6 +83,35 @@
       <h2>⑥ 部署到 Cloudflare Pages</h2>
       <p class="hint">本控制台本身是静态页，不能在线跑 Python。部署步骤见 <a href="DEPLOY.md">DEPLOY.md</a>：在 Cloudflare 面板手动上传 <code>web-console/</code> 目录，绑定 <code>loveshop.us.ci</code>（根域名，会顶替现有电商站）或 <code>tools.loveshop.us.ci</code>（子域名，保留店铺）。</p>
     </section>
+
+    <section class="card gen">
+      <h2>⑦ 一键生成视频</h2>
+      <p class="hint">点一下就在后端跑完整条流水线（含爬取→脚本→配音→渲染→分发清单）。后端需已部署并填入 API 地址（见 DEPLOY.md 路径 D；线上把 API_BASE 改成后端 Worker 地址）。</p>
+      <div class="cmd-grid">
+        <label>账号
+          <select id="gen-account"></select>
+        </label>
+        <label>步骤
+          <select id="gen-steps">
+            <option value="all">全链路 (all)</option>
+            <option value="script_writing">仅写脚本+去AI+审查</option>
+            <option value="topic_mining">仅选题拆解</option>
+            <option value="video_gen">仅视频画面</option>
+            <option value="distribution">仅分发清单</option>
+            <option value="review">仅评论复盘</option>
+          </select>
+        </label>
+        <label class="topic">话题（脚本步骤需要）
+          <input id="gen-topic" type="text" placeholder="例如：为什么房价在跌" />
+        </label>
+      </div>
+      <div class="cmd-box">
+        <button id="gen-btn" type="button" class="gen-btn">🚀 一键生成</button>
+        <span id="gen-state" class="gen-state">空闲</span>
+      </div>
+      <pre id="gen-log" class="gen-log"></pre>
+      <div id="gen-video"></div>
+    </section>
   </main>
 
   <footer>

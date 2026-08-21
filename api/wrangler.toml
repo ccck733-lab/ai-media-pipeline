@@ -1,0 +1,12 @@
+# Cloudflare Containers 配置（beta）
+# 后端镜像跑在 Container，Worker 负责把 /api/* 请求代理给 Container。
+# 注意：Containers 为 beta，API 形态可能随版本变化，以当时官方文档为准。
+name = "ai-media-worker"
+main = "worker.js"
+compatibility_date = "2025-04-01"
+compatibility_flags = ["nodejs_compat"]
+
+[containers.ai_media]
+# 指向 api/Dockerfile（仓库根的相对路径）
+image = "../api/Dockerfile"
+instance_type = "standard"
