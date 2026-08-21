@@ -51,7 +51,7 @@ import { RemotionRoot } from "./Compositions";
 
 registerRoot(RemotionRoot);
 """,
-    "src/Compositions.tsx": """import { AbsoluteFill, Audio, Img, Sequence, spring, staticFile, useCurrentFrame } from "remotion";
+    "src/Compositions.tsx": """import { AbsoluteFill, Audio, Img, Sequence, interpolate, spring, staticFile, useCurrentFrame } from "remotion";
 import { Composition } from "remotion";
 
 type Scene = {
@@ -77,14 +77,59 @@ const DEFAULT_SCENES: Scene[] = [
 const sumFrames = (list: Scene[]) =>
   Math.max(list.reduce((a, s) => a + (s.frames || FALLBACK_FRAMES), 0), FALLBACK_FRAMES);
 
-const SceneCard: React.FC<{ scene: Scene }> = ({ scene: s }) => {
-  const local = useCurrentFrame();
-  const progress = spring({ frame: local, fps: FPS, config: { damping: 200 } });
+const shade = (hex: string, amt: number): string => {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 0xff) + amt));
+  const b = Math.max(0, Math.min(255, (n & 0xff) + amt));
+  return "#" + ((r << 16) | (g << 8) | b).toString(16).padStart(6, "0");
+};
+
+const SceneCard: React.FC<{
+  scene: Scene;
+  index: number;
+  total: number;
+  totalFrames: number;
+}> = ({ scene: s, index, total, totalFrames }) => {
+  const f = useCurrentFrame();
+  const enter = spring({ frame: f, fps: FPS, config: { damping: 200 } });
+  const scale = interpolate(enter, [0, 1], [0.94, 1]);
+  const ts = spring({ frame: f - 4, fps: FPS, config: { damping: 14 } });
+  const titleX = interpolate(ts, [0, 1], [-160, 0]);
+  const titleOp = interpolate(ts, [0, 1], [0, 0.75]);
+  const bs = spring({ frame: f - 8, fps: FPS, config: { damping: 200 } });
+  const bodyY = interpolate(bs, [0, 1], [50, 0]);
+  const bodyOp = bs;
+  const ul = spring({ frame: f - 14, fps: FPS, config: { damping: 200 } });
+  const ulW = interpolate(ul, [0, 1], [0, 100]);
+  const float1 = Math.sin(f * 0.06) * 25;
+  const float2 = Math.cos(f * 0.045) * 18;
+  const pulse = 1 + Math.sin(f * 0.09) * 0.04;
+  const exit = interpolate(f, [totalFrames - 8, totalFrames - 1], [1, 0], {
+    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+  });
+  const angle = 135 + f * 0.4;
+  const bg2 = shade(s.bg, -18);
+  const bg3 = shade(s.bg, 14);
   return (
-    <AbsoluteFill style={{ background: s.bg, flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 72 }}>
-      {s.image ? <Img src={s.image} style={{ width: "68%", borderRadius: 24, marginBottom: 26 }} /> : null}
-      {s.title ? <h3 style={{ color: s.color, opacity: progress * 0.65, fontSize: 32, fontWeight: 600, margin: 0, letterSpacing: 2 }}>{s.title}</h3> : null}
-      <h1 style={{ color: s.color, opacity: progress, fontSize: 54, textAlign: "center", lineHeight: 1.25, margin: "12px 0 0", maxWidth: "86%" }}>{s.body}</h1>
+    <AbsoluteFill style={{ background: `linear-gradient(${angle}deg, ${s.bg} 0%, ${bg2} 50%, ${bg3} 100%)`, flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 72, transform: `scale(${scale})`, opacity: exit }}>
+      <div style={{ position: "absolute", top: "12%", right: "8%", width: 240, height: 240, borderRadius: "50%", background: s.color, opacity: 0.04, transform: `translateY(${float1}px) scale(${pulse})` }} />
+      <div style={{ position: "absolute", bottom: "18%", left: "6%", width: 180, height: 180, borderRadius: "50%", background: s.color, opacity: 0.03, transform: `translateY(${float2}px) scale(${pulse * 0.92})` }} />
+      <div style={{ position: "absolute", top: "45%", left: "70%", width: 100, height: 100, borderRadius: "50%", background: s.color, opacity: 0.025, transform: `translateY(${float1 * 0.6}px) scale(${pulse * 1.08})` }} />
+      <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.12) 100%)", pointerEvents: "none" }} />
+      {s.image ? <Img src={s.image} style={{ width: "68%", borderRadius: 24, marginBottom: 30, transform: `translateY(${bodyY}px)`, opacity: bodyOp, boxShadow: "0 8px 40px rgba(0,0,0,0.15)" }} /> : null}
+      {s.title ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20, transform: `translateX(${titleX}px)`, opacity: titleOp }}>
+          <div style={{ width: 6, height: 36, borderRadius: 3, background: s.color }} />
+          <h3 style={{ color: s.color, fontSize: 34, fontWeight: 700, margin: 0, letterSpacing: 4 }}>{s.title}</h3>
+        </div>
+      ) : null}
+      <h1 style={{ color: s.color, opacity: bodyOp, fontSize: 56, textAlign: "center", lineHeight: 1.3, margin: 0, maxWidth: "88%", fontWeight: 800, transform: `translateY(${bodyY}px)`, textShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>{s.body}</h1>
+      <div style={{ marginTop: 28, width: `${ulW}%`, maxWidth: "60%", height: 3, borderRadius: 2, background: s.color, opacity: bodyOp * 0.3 }} />
+      <div style={{ position: "absolute", bottom: 90, left: 72, right: 72, height: 5, borderRadius: 3, background: `${s.color}1a`, overflow: "hidden" }}>
+        <div style={{ width: `${((index + 1) / total) * 100}%`, height: "100%", borderRadius: 3, background: s.color }} />
+      </div>
+      <div style={{ position: "absolute", top: 72, right: 72, color: s.color, opacity: 0.25, fontSize: 20, fontWeight: 700 }}>{String(index + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</div>
     </AbsoluteFill>
   );
 };
@@ -100,7 +145,7 @@ export const AIConsole: React.FC<{ scenes?: Scene[] }> = ({ scenes }) => {
         cursor += dur;
         return (
           <Sequence key={i} from={start} durationInFrames={dur}>
-            <SceneCard scene={s} />
+            <SceneCard scene={s} index={i} total={list.length} totalFrames={dur} />
             {s.audio ? <Audio src={staticFile(s.audio)} /> : null}
           </Sequence>
         );
@@ -132,6 +177,7 @@ export const RemotionRoot: React.FC = () => (
 - 时长: 由各屏 frames 之和决定（跟随配音时长）
 - 音频: 每屏 <Audio> 从 public/audio/seg_N.wav 读取（subtitle_dub 产出）
 - 素材: scenes.generated.json 驱动每屏 title/body/audio/frames
+- 动态效果: 渐变背景旋转、浮动装饰圆、标题滑入、正文上浮、动态下划线、进度条、场景计数、出场淡出
 
 ## 运行
 ```
