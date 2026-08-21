@@ -25,5 +25,7 @@ api.log
 node_modules/
 video/remotion-app/scenes.generated.json
 video/remotion-app/out/
+video/remotion-app/public/audio/
 *.mp4
+*.wav
 
