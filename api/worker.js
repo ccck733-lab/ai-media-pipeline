@@ -11,7 +11,7 @@ export class AiMediaContainer extends Container {
     RENDER_VIDEO: "0",
     PORT: "8000",
   };
-  override onStart() {
+  override async onStart() {
     console.log("ai-media container started");
   }
 }
