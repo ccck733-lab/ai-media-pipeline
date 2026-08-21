@@ -15,9 +15,12 @@
     "top_n": 10
   },
   "script_writer": {
-    "model": "your-llm-endpoint-or-leave-empty-to-use-workbuddy",
+    "model": "",
+    "base_url": "",
+    "api_key": "",
     "de_ai": true,
-    "safety_review": true
+    "safety_review": true,
+    "_llm_hint": "填 model+base_url+api_key（OpenAI 兼容）即一键生成真实脚本；留空则用结构化模板初稿"
   },
   "subtitle_dub": {
     "engine": "pyvideotrans",

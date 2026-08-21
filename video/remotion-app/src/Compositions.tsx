@@ -1,13 +1,14 @@
-import { AbsoluteFill, useCurrentFrame, spring } from "remotion";
+import { AbsoluteFill, useCurrentFrame, spring, Img } from "remotion";
+import { Composition } from "remotion";
 
-type Scene = { text: string; color: string; bg: string };
+type Scene = { title?: string; body: string; color: string; bg: string; image?: string };
 
 // 默认示例画面（无脚本数据时回退）
 const DEFAULT_SCENES: Scene[] = [
-  { text: "钩子：反常识开场", color: "#0b0b0b", bg: "#fff7e6" },
-  { text: "一个具体例子", color: "#111", bg: "#e6f7ff" },
-  { text: "可操作结论", color: "#111", bg: "#e6ffe6" },
-  { text: "评论区告诉我下一个问题", color: "#fff", bg: "#111" },
+  { title: "钩子", body: "核心观点", color: "#0b0b0b", bg: "#fff7e6" },
+  { title: "要点", body: "关键洞察", color: "#111", bg: "#e6f7ff" },
+  { title: "要点", body: "行动清单", color: "#111", bg: "#e6ffe6" },
+  { title: "互动", body: "下期想听什么？评论区告诉我", color: "#fff", bg: "#111" },
 ];
 
 const SCENE_LEN = 45; // 每屏约 1.5s @30fps
@@ -20,13 +21,14 @@ export const AIConsole: React.FC<{ scenes?: Scene[] }> = ({ scenes }) => {
   const s = list[idx];
   const progress = spring({ frame: frame % SCENE_LEN, fps: 30, config: { damping: 200 } });
   return (
-    <AbsoluteFill style={{ background: s.bg, justifyContent: "center", alignItems: "center", padding: 80 }}>
-      <h1 style={{ color: s.color, opacity: progress, fontSize: 64, textAlign: "center", lineHeight: 1.2 }}>{s.text}</h1>
+    <AbsoluteFill style={{ background: s.bg, flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 72 }}>
+      {s.image ? <Img src={s.image} style={{ width: "68%", borderRadius: 24, marginBottom: 26 }} /> : null}
+      {s.title ? <h3 style={{ color: s.color, opacity: progress * 0.65, fontSize: 32, fontWeight: 600, margin: 0, letterSpacing: 2 }}>{s.title}</h3> : null}
+      <h1 style={{ color: s.color, opacity: progress, fontSize: 54, textAlign: "center", lineHeight: 1.25, margin: "12px 0 0", maxWidth: "86%" }}>{s.body}</h1>
     </AbsoluteFill>
   );
 };
 
-import { Composition } from "remotion";
 export const RemotionRoot: React.FC = () => (
   <Composition
     id="AIConsole"

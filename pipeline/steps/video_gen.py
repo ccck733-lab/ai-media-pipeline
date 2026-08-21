@@ -4,6 +4,7 @@
 否则在 video/remotion-app 生成可运行的脚手架。
 """
 import json
+import re
 from pathlib import Path
 
 from pipeline.steps import step_dir, save, external_exists, ROOT
@@ -49,16 +50,16 @@ import { RemotionRoot } from "./Compositions";
 
 registerRoot(RemotionRoot);
 """,
-    "src/Compositions.tsx": """import { AbsoluteFill, useCurrentFrame, spring } from "remotion";
+    "src/Compositions.tsx": """import { AbsoluteFill, useCurrentFrame, spring, Img } from "remotion";
 import { Composition } from "remotion";
 
-type Scene = { text: string; color: string; bg: string };
+type Scene = { title?: string; body: string; color: string; bg: string; image?: string };
 
 const DEFAULT_SCENES: Scene[] = [
-  { text: "核心观点", color: "#0b0b0b", bg: "#fff7e6" },
-  { text: "关键洞察", color: "#111", bg: "#e6f7ff" },
-  { text: "行动清单", color: "#111", bg: "#e6ffe6" },
-  { text: "下期想听什么？评论区告诉我", color: "#fff", bg: "#111" },
+  { title: "钩子", body: "核心观点", color: "#0b0b0b", bg: "#fff7e6" },
+  { title: "要点", body: "关键洞察", color: "#111", bg: "#e6f7ff" },
+  { title: "要点", body: "行动清单", color: "#111", bg: "#e6ffe6" },
+  { title: "互动", body: "下期想听什么？评论区告诉我", color: "#fff", bg: "#111" },
 ];
 
 const SCENE_LEN = 45;
@@ -71,8 +72,10 @@ export const AIConsole: React.FC<{ scenes?: Scene[] }> = ({ scenes }) => {
   const s = list[idx];
   const progress = spring({ frame: frame % SCENE_LEN, fps: 30, config: { damping: 200 } });
   return (
-    <AbsoluteFill style={{ background: s.bg, justifyContent: "center", alignItems: "center", padding: 80 }}>
-      <h1 style={{ color: s.color, opacity: progress, fontSize: 64, textAlign: "center", lineHeight: 1.2 }}>{s.text}</h1>
+    <AbsoluteFill style={{ background: s.bg, flexDirection: "column", justifyContent: "center", alignItems: "center", padding: 72 }}>
+      {s.image ? <Img src={s.image} style={{ width: "68%", borderRadius: 24, marginBottom: 26 }} /> : null}
+      {s.title ? <h3 style={{ color: s.color, opacity: progress * 0.65, fontSize: 32, fontWeight: 600, margin: 0, letterSpacing: 2 }}>{s.title}</h3> : null}
+      <h1 style={{ color: s.color, opacity: progress, fontSize: 54, textAlign: "center", lineHeight: 1.25, margin: "12px 0 0", maxWidth: "86%" }}>{s.body}</h1>
     </AbsoluteFill>
   );
 };
@@ -109,52 +112,56 @@ npm run build      # 渲染成片 -> out/video.mp4
 }
 
 
-def _build_scenes_from_script(account: str) -> list[str]:
-    """从 script_writing/script.md 提取成稿关键句，作为 Remotion 画面场景。"""
+def _clip(s: str, n: int = 42) -> str:
+    s = (s or "").strip()
+    return s if len(s) <= n else s[:n] + "…"
+
+
+def _build_scenes_from_script(account: str) -> list[dict]:
+    """解析 script_writing/script.md 的 ## 章节，提取每屏标题+正文，驱动视频画面。"""
     script = step_dir(account, "script_writing") / "script.md"
     if not script.exists():
         return []
     text = script.read_text(encoding="utf-8", errors="ignore")
-    # 只取「脚本模板」区块，排除顶部风格复刻参考元数据
-    if "# 脚本模板" in text:
-        text = text.split("# 脚本模板", 1)[1]
-    # 模板结构词/说明句，不是成稿内容，跳过
-    skip_kw = ("占位符", "模板", "先说", "再给", "语气严格", "人设", "节奏", "长度",
-               "口吻", "禁用", "样本", "结构", "钩子（", "一个具体例子", "给出可操作",
-               "互动引导", "注意")
-    real = []
-    for ln in text.splitlines():
-        s = ln.strip()
-        if not s:
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.S)  # 去掉风格注释块
+    # 只取真正的脚本区（跳过顶部「风格复刻参考」块）
+    m = re.search(r"\n#\s*脚本（", text)
+    if m:
+        text = text[m.start():]
+    parts = re.split(r"\n##\s+", text)
+    scenes: list[dict] = []
+    for part in parts[1:]:
+        lines = [l.strip() for l in part.splitlines() if l.strip()]
+        if not lines:
             continue
-        # 跳过标题/注释/引用/分隔线/列表项/模板标题残留（如「（知识科普）」）
-        if s.startswith(("#", "<!--", ">", "---", "-", "（")):
-            continue
-        # 跳过 numbered 结构步骤，如「1. 钩子（反常识/痛点）」
-        if s[0].isdigit() and s[1:2] in (".", "、"):
-            continue
-        if any(k in s for k in skip_kw):
-            continue
-        if len(s) < 6:
-            continue
-        real.append(s)
-    # 去重保序
-    seen: set[str] = set()
-    real = [x for x in real if not (x in seen or seen.add(x))]
-    return real[:6]
+        title = lines[0].replace("#", "").strip()
+        body_lines = [l for l in lines[1:] if l and not l.startswith((">", "---"))]
+        if title == "正文":
+            for i, l in enumerate(body_lines, 1):
+                mm = re.match(r"^\d+[.、)]\s*(.*)", l)
+                if mm:
+                    scenes.append({"title": f"要点{i}", "body": _clip(mm.group(1))})
+        else:
+            body = _clip(" ".join(body_lines))
+            if body:
+                scenes.append({"title": title, "body": body})
+    # 屏数上限 6：超了先丢「痛点」段（钩子已含冲突），保钩子/要点/结论/互动
+    if len(scenes) > 6:
+        scenes = [s for s in scenes if s.get("title") != "痛点"]
+    return scenes[:6]
 
 
-# 真实成稿句不足时混入的默认画面，保证视频至少有 4 屏内容。
-# 注意：必须是「观众能看懂的内容卡片」，不能用开发占位词（如「钩子：反常识开场」）。
-_FALLBACK_SCENES = [
-    "核心观点",
-    "关键洞察",
-    "行动清单",
-    "下期想听什么？评论区告诉我",
+# 真实场景不足时混入的默认画面，保证视频至少有 4 屏内容。
+# 注意：必须是「观众能看懂的内容卡片」，不能用开发占位词。
+_DEFAULT_SCENES = [
+    {"title": "钩子", "body": "核心观点"},
+    {"title": "要点", "body": "关键洞察"},
+    {"title": "要点", "body": "行动清单"},
+    {"title": "互动", "body": "下期想听什么？评论区告诉我"},
 ]
 
 
-def _write_scenes_json(proj: str, scenes: list[str]) -> Path | None:
+def _write_scenes_json(proj: str, scenes: list[dict]) -> Path | None:
     palette = [
         {"color": "#0b0b0b", "bg": "#fff7e6"},
         {"color": "#111", "bg": "#e6f7ff"},
@@ -163,8 +170,10 @@ def _write_scenes_json(proj: str, scenes: list[str]) -> Path | None:
         {"color": "#111", "bg": "#ffe6f0"},
         {"color": "#111", "bg": "#f0e6ff"},
     ]
-    texts = (scenes + _FALLBACK_SCENES)[:6]
-    data = {"scenes": [{"text": t, **palette[i % len(palette)]} for i, t in enumerate(texts)]}
+    if not scenes:
+        scenes = [dict(s) for s in _DEFAULT_SCENES]
+    scenes = (scenes + [{"title": "互动", "body": "下期想听什么？评论区告诉我"}])[:6]
+    data = {"scenes": [{**sc, **palette[i % len(palette)]} for i, sc in enumerate(scenes)]}
     out = ROOT / proj / "scenes.generated.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
