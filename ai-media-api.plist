@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai-media-api</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/like/.workbuddy/binaries/python/envs/default/bin/python</string>
+        <string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline/api/server.py</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline/api.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline/api.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+    </dict>
+</dict>
+</plist>
