@@ -35,6 +35,29 @@
 
 ---
 
+## 路径 C：Git 自动部署（push 即上线，推荐）
+
+> 需你在 GitHub 有账号并把本仓库推送上去；Cloudflare 侧在面板**连接 Git**（token 失效不影响 Git 连接，授权用 GitHub OAuth 而非 API token）。仓库根已是 `ai-media-pipeline`，`.gitignore` 已排除 `workspace/` 与本地密钥。
+
+1. GitHub 新建一个空仓库（如 `ai-media-pipeline`），**不要**勾选自动生成 README / .gitignore。
+2. 本机添加远程并推送（替换 `<你>` / `<仓库名>`）：
+   ```bash
+   cd ai-media-pipeline
+   git remote add origin https://github.com/<你>/<仓库名>.git
+   git branch -M main
+   git push -u origin main
+   ```
+3. Cloudflare 面板 → **Workers & Pages** → **Create** → **Pages** → **Connect to Git** → 授权 GitHub → 选中该仓库。
+4. 构建设置（关键）：
+   - **Framework preset：None**（纯静态，无框架）
+   - **Build command：留空**
+   - **Output directory：`web-console`**
+   - 其余默认 → **Save and Deploy**。
+5. 部署完成后，**Custom domains** 绑定 `loveshop.us.ci`（路径 B 的覆盖说明同样适用）或 `tools.loveshop.us.ci`（保留店铺）。
+6. 之后每次 `git push` 自动重新部署，无需再拖文件夹。
+
+---
+
 ## 本地预览（部署前自测）
 
 ```bash
