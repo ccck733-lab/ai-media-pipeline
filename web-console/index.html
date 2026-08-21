@@ -3,603 +3,673 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 自媒体自动化控制台 · ai-media-pipeline</title>
+  <title>AI 自媒体生成控制台</title>
   <style>
 :root {
-  --bg: #f6f7f9;
-  --card: #ffffff;
-  --ink: #1d2129;
-  --muted: #6b7280;
-  --line: #e5e7eb;
-  --brand: #2f6bff;
-  --brand-soft: #eaf1ff;
-  --green: #18a058;
-  --amber: #d97706;
-  --red: #e5484d;
-  --radius: 12px;
-  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --bg: #0a0a0f;
+  --surface: #131318;
+  --surface-2: #1a1a22;
+  --border: #2a2a35;
+  --ink: #e8e8ec;
+  --muted: #888894;
+  --brand: #6c5ce7;
+  --brand-light: #a29bfe;
+  --accent: #00cec9;
+  --green: #00b894;
+  --amber: #fdcb6e;
+  --red: #e74c3c;
+  --radius: 14px;
+  --shadow: 0 4px 24px rgba(0,0,0,.3);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
+  min-height: 100vh;
 }
 
-.topbar {
+/* ===== Header ===== */
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 28px;
-  background: var(--card);
-  border-bottom: 1px solid var(--line);
+  padding: 16px 24px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 100;
+  backdrop-filter: blur(12px);
 }
-.topbar h1 { margin: 0; font-size: 19px; }
-.topbar .sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-.badge {
-  background: var(--brand-soft);
-  color: var(--brand);
-  padding: 5px 12px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--brand), var(--accent));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.header h1 { font-size: 17px; font-weight: 700; }
+.header .sub { font-size: 12px; color: var(--muted); }
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+}
+.header-right { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+
+/* ===== Layout ===== */
+.container {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
-main {
-  max-width: 960px;
-  margin: 24px auto;
-  padding: 0 18px;
-  display: grid;
-  gap: 18px;
-}
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
+/* ===== Hero / Topic Input ===== */
+.hero {
+  background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px 22px;
+  padding: 28px 24px;
   box-shadow: var(--shadow);
 }
-.card h2 { margin: 0 0 6px; font-size: 16px; }
-.hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+.hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, var(--brand-light), var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.hero-desc { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
 
-/* 流程地图 */
-.pipeline-map {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: stretch;
-}
-.step {
-  flex: 1 1 140px;
-  background: var(--brand-soft);
-  border: 1px solid #d4e2ff;
-  border-radius: 10px;
-  padding: 12px 10px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 600;
-  color: #1f3a8a;
-  position: relative;
-}
-.step small { display: block; font-weight: 400; color: #4b617f; margin-top: 4px; font-size: 11px; }
-.step .arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--brand); font-size: 16px; }
-
-/* 命令中心 */
-.cmd-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-.cmd-grid .topic { grid-column: 1 / -1; }
-label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 5px; }
-select, input[type="text"] {
-  padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--ink);
-  background: #fff;
-}
-select:focus, input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
-
-.cmd-box {
-  display: flex;
-  gap: 10px;
-  align-items: stretch;
-  background: #0f172a;
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-.cmd-box code {
+.input-group { display: flex; flex-direction: column; gap: 12px; }
+.input-row { display: flex; gap: 10px; align-items: stretch; }
+.topic-input {
   flex: 1;
-  color: #d7e3ff;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
-  font-size: 13px;
-  white-space: pre-wrap;
-  word-break: break-all;
-  align-self: center;
-}
-#copy-btn {
-  border: none;
-  background: var(--brand);
-  color: #fff;
-  border-radius: 8px;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-#copy-btn:active { transform: scale(.97); }
-.run-tip { margin-top: 10px; font-size: 12px; color: var(--muted); }
-.run-tip code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; }
-
-.config-view {
-  background: #0f172a;
-  color: #cfe3ff;
   padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  font-size: 12.5px;
-  overflow: auto;
-  max-height: 360px;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: var(--ink);
+  font-size: 15px;
+  outline: none;
+  transition: border-color .2s;
 }
+.topic-input:focus { border-color: var(--brand); }
+.topic-input::placeholder { color: #555560; }
 
-/* 技能卡 */
-.skills-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.skill {
-  border: 1px solid var(--line);
+.account-select {
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 14px;
-  background: #fafbfc;
-}
-.skill h3 { margin: 0 0 6px; font-size: 14px; color: var(--brand); }
-.skill p { margin: 0; font-size: 12.5px; color: var(--muted); }
-
-details { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: #fafbfc; }
-summary { cursor: pointer; font-weight: 600; font-size: 13px; }
-details ul { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink); }
-details li { margin-bottom: 4px; }
-
-.deploy code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; }
-
-/* 一键生成 */
-.gen-btn {
-  border: none;
-  background: linear-gradient(135deg, #2f6bff, #18a058);
-  color: #fff;
-  border-radius: 8px;
-  padding: 10px 18px;
+  color: var(--ink);
   font-size: 14px;
+  cursor: pointer;
+  min-width: 160px;
+}
+.account-select option { background: var(--surface); }
+
+.gen-btn {
+  padding: 14px 28px;
+  background: linear-gradient(135deg, var(--brand), #8b7cf6);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  transition: transform .1s, opacity .2s;
 }
-.gen-btn:disabled { opacity: .6; cursor: not-allowed; }
-.gen-state { align-self: center; font-size: 13px; color: var(--muted); font-weight: 600; }
-.gen-state.running { color: var(--amber); }
-.gen-state.done { color: var(--green); }
-.gen-state.failed { color: var(--red); }
-.gen-log {
-  margin-top: 12px;
-  background: #0f172a;
-  color: #cfe3ff;
-  padding: 12px 14px;
-  border-radius: 10px;
+.gen-btn:hover { opacity: .9; }
+.gen-btn:active { transform: scale(.97); }
+.gen-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* Quick topic chips */
+.topic-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.chip {
+  padding: 5px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
   font-size: 12px;
-  max-height: 240px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all .15s;
+}
+.chip:hover { border-color: var(--brand); color: var(--ink); }
+
+/* ===== Progress ===== */
+.progress-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: none;
+}
+.progress-card.active { display: block; }
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.progress-header h3 { font-size: 15px; font-weight: 600; }
+.progress-status {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.progress-status.running { background: rgba(253,203,110,.15); color: var(--amber); }
+.progress-status.done { background: rgba(0,184,148,.15); color: var(--green); }
+.progress-status.failed { background: rgba(231,76,60,.15); color: var(--red); }
+.progress-status.queued { background: rgba(108,92,231,.15); color: var(--brand-light); }
+
+.steps-track {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.step-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.step-bar.fill {
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+}
+.step-bar.active::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+  animation: pulse-fill 1.5s ease-in-out infinite;
+}
+@keyframes pulse-fill {
+  0%, 100% { opacity: .4; }
+  50% { opacity: 1; }
+}
+
+.step-labels {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.step-label { flex: 1; text-align: center; }
+.step-label.done { color: var(--green); }
+.step-label.active { color: var(--accent); font-weight: 600; }
+
+.log-box {
+  background: #08080c;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: #7aa2a8;
+  max-height: 200px;
   overflow: auto;
   white-space: pre-wrap;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  line-height: 1.5;
 }
-#gen-video { margin-top: 12px; }
-#gen-video video { width: 100%; border-radius: 10px; border: 1px solid var(--line); }
-#gen-video a { color: var(--brand); }
+.log-box::-webkit-scrollbar { width: 6px; }
+.log-box::-webkit-scrollbar-track { background: transparent; }
+.log-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0 36px; }
+/* ===== Result / Video ===== */
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  display: none;
+}
+.result-card.active { display: block; }
+.result-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+.result-video { width: 100%; border-radius: 10px; border: 1px solid var(--border); }
+.result-actions { display: flex; gap: 10px; margin-top: 12px; }
+.dl-btn {
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .2s;
+}
+.dl-btn:hover { border-color: var(--brand); }
 
+.artifacts-toggle {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.artifacts-toggle:hover { color: var(--ink); }
+.artifacts-list {
+  display: none;
+  margin-top: 8px;
+  flex-direction: column;
+  gap: 4px;
+}
+.artifacts-list.open { display: flex; }
+.artifact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.artifact-item .name { color: var(--ink); }
+.artifact-item .size { color: var(--muted); }
+.artifact-item a { color: var(--brand-light); text-decoration: none; }
+
+/* ===== History ===== */
+.history-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+}
+.history-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.history-item:hover { border-color: var(--border); }
+.history-left { display: flex; align-items: center; gap: 10px; }
+.history-topic { font-size: 14px; font-weight: 500; }
+.history-meta { font-size: 12px; color: var(--muted); }
+.history-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.history-status.done { background: rgba(0,184,148,.15); color: var(--green); }
+.history-status.running { background: rgba(253,203,110,.15); color: var(--amber); }
+.history-status.failed { background: rgba(231,76,60,.15); color: var(--red); }
+.history-status.queued { background: rgba(108,92,231,.15); color: var(--brand-light); }
+
+.empty-state { text-align: center; color: var(--muted); font-size: 14px; padding: 20px; }
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .input-row { flex-direction: column; }
+  .account-select { min-width: 0; }
+  .step-labels { font-size: 9px; }
+  .header .sub { display: none; }
+}
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
-  <header class="topbar">
-    <div>
-      <h1>AI 自媒体自动化控制台</h1>
-      <p class="sub">ai-media-pipeline · 6 步闭环 · 配置驱动 · 按账号克隆</p>
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">AI</div>
+      <div>
+        <h1>AI 自媒体生成控制台</h1>
+        <p class="sub">DeepSeek 写稿 · VoxCPM 配音 · Remotion 渲染</p>
+      </div>
     </div>
-    <span class="badge" id="env-badge">本地 / 待部署</span>
+    <div class="header-right">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">检测中</span>
+    </div>
   </header>
 
-  <main>
-    <!-- 流程地图 -->
-    <section class="card">
-      <h2>① 流程地图</h2>
-      <p class="hint">选题拆解 → 写脚本(去AI+安全审查) → 字幕配音 → 视频画面 → 多平台分发 → 评论复盘(反哺选题)</p>
-      <div id="pipeline-map" class="pipeline-map"></div>
-    </section>
-
-    <!-- 命令中心 -->
-    <section class="card">
-      <h2>② 命令中心</h2>
-      <p class="hint">选账号与步骤，生成可在本地终端执行的命令（本控制台为静态页，不能在线跑 Python，命令请在本机流水线目录执行）。</p>
-      <div class="cmd-grid">
-        <label>账号
-          <select id="account-select"></select>
-        </label>
-        <label>步骤
-          <select id="step-select">
-            <option value="all">全部 (all)</option>
-            <option value="topic_mining">① 选题拆解</option>
-            <option value="script_writing">② 写脚本+去AI+审查</option>
-            <option value="subtitle_dub">③ 字幕配音</option>
-            <option value="video_gen">④ 视频画面</option>
-            <option value="distribution">⑤ 多平台分发</option>
-            <option value="review">⑥ 评论复盘</option>
-          </select>
-        </label>
-        <label class="topic">话题 (仅脚本步骤需要)
-          <input id="topic-input" type="text" placeholder="例如：为什么房价在跌" />
-        </label>
+  <div class="container">
+    <!-- Hero: Topic Input -->
+    <section class="hero">
+      <h2 class="hero-title">输入选题，一键生成视频</h2>
+      <p class="hero-desc">填入话题，AI 自动写脚本、合成语音、渲染动态画面，输出带配音的竖屏视频。</p>
+      <div class="input-group">
+        <div class="input-row">
+          <input class="topic-input" id="topic" type="text" placeholder="例如：为什么年轻人开始存黄金" />
+          <select class="account-select" id="account"></select>
+        </div>
+        <div class="input-row">
+          <button class="gen-btn" id="gen-btn">生成视频</button>
+        </div>
+        <div class="topic-chips" id="chips"></div>
       </div>
-      <div class="cmd-box">
-        <code id="cmd-output">python3 pipeline/orchestrator.py --account douyin-default --step all</code>
-        <button id="copy-btn" type="button">复制</button>
+    </section>
+
+    <!-- Progress -->
+    <section class="progress-card" id="progress-card">
+      <div class="progress-header">
+        <h3 id="progress-title">正在生成…</h3>
+        <span class="progress-status" id="progress-status">queued</span>
       </div>
-      <div class="run-tip" id="run-tip"></div>
+      <div class="steps-track" id="steps-track"></div>
+      <div class="step-labels" id="step-labels"></div>
+      <div class="log-box" id="log-box">等待日志…</div>
     </section>
 
-    <!-- 配置查看 -->
-    <section class="card">
-      <h2>③ 账号配置</h2>
-      <p class="hint">当前选中账号的完整配置（对应 config/accounts/&lt;账号&gt;.json）。</p>
-      <pre id="config-view" class="config-view"></pre>
+    <!-- Result -->
+    <section class="result-card" id="result-card">
+      <h3>成片预览</h3>
+      <video class="result-video" id="result-video" controls></video>
+      <div class="result-actions" id="result-actions"></div>
+      <div class="artifacts-toggle" id="artifacts-toggle">展开全部产物</div>
+      <div class="artifacts-list" id="artifacts-list"></div>
     </section>
 
-    <!-- 长效技能 -->
-    <section class="card">
-      <h2>④ 三类长效技能</h2>
-      <div id="skills-grid" class="skills-grid"></div>
-    </section>
-
-    <!-- 安全 / 去AI 速查 -->
-    <section class="card">
-      <h2>⑤ 安全 & 去AI 速查</h2>
-      <details>
-        <summary>去 AI 感规则（prompts/de_ai_rules.md）</summary>
-        <ul id="deai-list"></ul>
-      </details>
-      <details>
-        <summary>发布前安全审查清单（prompts/safety_checklist.md）</summary>
-        <ul id="safety-list"></ul>
-      </details>
-    </section>
-
-    <section class="card deploy">
-      <h2>⑥ 部署到 Cloudflare Pages</h2>
-      <p class="hint">本控制台本身是静态页，不能在线跑 Python。部署步骤见 <a href="DEPLOY.md">DEPLOY.md</a>：在 Cloudflare 面板手动上传 <code>web-console/</code> 目录，绑定 <code>loveshop.us.ci</code>（根域名，会顶替现有电商站）或 <code>tools.loveshop.us.ci</code>（子域名，保留店铺）。</p>
-    </section>
-
-    <section class="card gen">
-      <h2>⑦ 一键生成视频</h2>
-      <p class="hint">点一下就在后端跑完整条流水线（含爬取→脚本→配音→渲染→分发清单）。本地运行时直接访问本页面即可；从 loveshop.us.ci 访问时，在下方填入本地/隧道后端地址。</p>
-      <div class="cmd-grid">
-        <label>账号
-          <select id="gen-account"></select>
-        </label>
-        <label>步骤
-          <select id="gen-steps">
-            <option value="all">全链路 (all)</option>
-            <option value="script_writing">仅写脚本+去AI+审查</option>
-            <option value="topic_mining">仅选题拆解</option>
-            <option value="video_gen">仅视频画面</option>
-            <option value="distribution">仅分发清单</option>
-            <option value="review">仅评论复盘</option>
-          </select>
-        </label>
-        <label class="topic">话题（脚本步骤需要）
-          <input id="gen-topic" type="text" placeholder="例如：为什么房价在跌" />
-        </label>
-        <label class="topic">后端 API 地址
-          <input id="api-base-input" type="text" placeholder="留空=当前站点" />
-          <small id="api-base-status" style="color:#888">检测中…</small>
-        </label>
+    <!-- History -->
+    <section class="history-card">
+      <h3>历史任务</h3>
+      <div class="history-list" id="history-list">
+        <div class="empty-state">暂无任务</div>
       </div>
-      <div class="cmd-box">
-        <button id="gen-btn" type="button" class="gen-btn">🚀 一键生成</button>
-        <span id="gen-state" class="gen-state">空闲</span>
-      </div>
-      <pre id="gen-log" class="gen-log"></pre>
-      <div id="gen-video"></div>
     </section>
-  </main>
-
-  <footer>
-    <span>WorkBuddy 构建 · 静态控制台 · 真实执行请在本地流水线目录</span>
-  </footer>
+  </div>
 
   <script>
-// ===== 内嵌数据（与 config/ 保持一致；静态页无法读服务端文件，故内联）=====
-const PIPELINE = {
-  name: "ai-self-media-automation",
-  steps: ["topic_mining", "script_writing", "subtitle_dub", "video_gen", "distribution", "review"]
-};
-
-const STEP_META = {
-  topic_mining:    { label: "① 选题拆解",  desc: "Agent Reach / MediaCrawler 拆爆款" },
-  script_writing:  { label: "② 写脚本",    desc: "去AI感 + 安全审查" },
-  subtitle_dub:    { label: "③ 字幕配音",  desc: "PyVideoTrans" },
-  video_gen:       { label: "④ 视频画面",  desc: "Remotion / Hyperframes" },
-  distribution:    { label: "⑤ 多平台分发", desc: "抖音 / YouTube 等" },
-  review:          { label: "⑥ 评论复盘",  desc: "反哺下一轮选题" }
-};
-
-const ACCOUNTS = {
-  "douyin-default": {
-    account: { platform: "douyin", name: "my-douyin", niche: "知识科普", style_ref: "config/style/douyin-style.md", target_length_sec: 60, language: "zh" },
-    topic_mining: { source: "mediacrawler", mediacrawler_path: "/path/to/MediaCrawler", keywords: ["行业关键词1", "行业关键词2", "竞品账号"], top_n: 10 },
-    script_writer: { model: "your-llm-endpoint-or-leave-empty-to-use-workbuddy", de_ai: true, safety_review: true },
-    subtitle_dub: { engine: "pyvideotrans", pyvideotrans_path: "/path/to/PyVideoTrans", target_lang: "en" },
-    video_gen: { engine: "remotion", remotion_project: "video/remotion-app", hyperframes: false },
-    distribution: { platforms: ["douyin"], schedule_cron: "0 19 * * *" },
-    review: { scrape_comments: true, iterate: true }
-  },
-  "youtube-default": {
-    account: { platform: "youtube", name: "my-youtube", niche: "tech-explainer", style_ref: "config/style/youtube-style.md", target_length_sec: 180, language: "en" },
-    topic_mining: { source: "agent_reach", mediacrawler_path: "", keywords: ["trending tech", "how to"], top_n: 15 },
-    script_writer: { model: "", de_ai: true, safety_review: true },
-    subtitle_dub: { engine: "pyvideotrans", pyvideotrans_path: "/path/to/PyVideoTrans", target_lang: "en" },
-    video_gen: { engine: "remotion", remotion_project: "video/remotion-app", hyperframes: true },
-    distribution: { platforms: ["youtube"], schedule_cron: "0 10 * * 1,3,5" },
-    review: { scrape_comments: true, iterate: true }
-  }
-};
-
-const SKILLS = [
-  { name: "style-replication", title: "风格复刻", desc: "从爆款样本收敛账号人设与脚本口吻，让每账号产出稳定贴人设。" },
-  { name: "process-optimization", title: "流程自优化", desc: "用评论/数据反馈自动调整关键词、时长、平台策略，越跑越准。" },
-  { name: "safety-review", title: "安全审查", desc: "发布前合规与风控把关：版权、广告法、平台规范、虚假信息。" }
+const STEP_NAMES = ["选题拆解", "写脚本", "字幕配音", "视频画面", "分发清单", "评论复盘"];
+const SUGGESTED_TOPICS = [
+  "为什么年轻人开始存黄金",
+  "2026年最值得学的3个技能",
+  "为什么越来越多人做副业",
+  "存钱还是投资？年轻人怎么选",
 ];
 
-const DEAI_RULES = [
-  "没有“首先/其次/最后”式教科书结构",
-  "没有“在当今社会”“随着……发展”等空泛开头",
-  "没有排比三连、没有过度对称句式",
-  "没有“值得注意的是”“综上所述”等总结腔",
-  "用了至少 1 个具体例子 / 数字 / 人名",
-  "有明确主见（敢下判断，不是“各有优劣”）",
-  "句子长短交错，有口语停顿感",
-  "没有解释显而易见的概念（像对人说话）",
-  "结尾有真实互动钩子，不是“感谢观看”",
-  "通读一遍：像你本人会说的话吗？"
-];
+let pollTimer = null;
+let currentJobId = null;
 
-const SAFETY_RULES = [
-  "不含违法、暴力、色情、仇恨、诈骗内容",
-  "不侵犯他人著作权 / 肖像权 / 商标（素材需授权或自制）",
-  "不涉及医疗、金融的违规承诺与硬广",
-  "不编造虚假信息 / 不实数据（引用需可核查）",
-  "不诱导私下交易、不引流到违规外链",
-  "不泄露个人隐私信息",
-  "符合平台社区规范与广告法表述要求",
-  "政治、社会敏感话题按属地法规审慎处理"
-];
+// ===== API =====
+const API = ""; // same origin
 
-// ===== 渲染 =====
-function renderPipelineMap() {
-  const map = document.getElementById("pipeline-map");
-  PIPELINE.steps.forEach((s, i) => {
-    const meta = STEP_META[s];
-    const el = document.createElement("div");
-    el.className = "step";
-    el.innerHTML = `${meta.label}<small>${meta.desc}</small>`;
-    if (i < PIPELINE.steps.length - 1) {
-      const a = document.createElement("span");
-      a.className = "arrow";
-      a.textContent = "→";
-      el.appendChild(a);
-    }
-    map.appendChild(el);
-  });
+async function api(path, opts) {
+  const r = await fetch(API + path, opts);
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  return r.json();
 }
 
-function renderAccounts() {
-  const sel = document.getElementById("account-select");
-  Object.keys(ACCOUNTS).forEach((k) => {
-    const o = document.createElement("option");
-    o.value = k;
-    o.textContent = `${k}（${ACCOUNTS[k].account.platform} · ${ACCOUNTS[k].account.niche}）`;
-    sel.appendChild(o);
-  });
+// ===== Init =====
+async function init() {
+  await checkHealth();
+  await loadAccounts();
+  await loadHistory();
+  renderChips();
 }
 
-function renderSkills() {
-  const grid = document.getElementById("skills-grid");
-  SKILLS.forEach((sk) => {
-    const el = document.createElement("div");
-    el.className = "skill";
-    el.innerHTML = `<h3>${sk.title}</h3><p>${sk.desc}</p>`;
-    grid.appendChild(el);
-  });
-}
-
-function renderLists() {
-  const de = document.getElementById("deai-list");
-  DEAI_RULES.forEach((r) => { const li = document.createElement("li"); li.textContent = r; de.appendChild(li); });
-  const sa = document.getElementById("safety-list");
-  SAFETY_RULES.forEach((r) => { const li = document.createElement("li"); li.textContent = r; sa.appendChild(li); });
-}
-
-function buildCmd() {
-  const acc = document.getElementById("account-select").value;
-  const step = document.getElementById("step-select").value;
-  const topic = document.getElementById("topic-input").value.trim();
-  let cmd = `python3 pipeline/orchestrator.py --account ${acc} --step ${step}`;
-  if (step === "script_writing" && topic) cmd += ` --topic "${topic}"`;
-  return cmd;
-}
-
-function updateCmd() {
-  const cmd = buildCmd();
-  document.getElementById("cmd-output").textContent = cmd;
-  const step = document.getElementById("step-select").value;
-  const tip = document.getElementById("run-tip");
-  if (step === "all") {
-    tip.innerHTML = "将依次跑完 6 步；外部工具未配置时自动降级并产出下一步指引。在本机 <code>ai-media-pipeline/</code> 目录执行。";
-  } else if (step === "script_writing") {
-    tip.innerHTML = "填“话题”后命令会带上 <code>--topic</code>；产出 script.md + 去AI清单 + 安全审查报告。";
-  } else {
-    tip.innerHTML = "在本地流水线目录执行该命令即可。";
-  }
-}
-
-function updateConfig() {
-  const acc = document.getElementById("account-select").value;
-  document.getElementById("config-view").textContent = JSON.stringify(ACCOUNTS[acc], null, 2);
-}
-
-function copyCmd() {
-  const btn = document.getElementById("copy-btn");
-  navigator.clipboard.writeText(buildCmd()).then(() => {
-    btn.textContent = "已复制";
-    setTimeout(() => (btn.textContent = "复制"), 1400);
-  }).catch(() => {
-    btn.textContent = "复制失败";
-    setTimeout(() => (btn.textContent = "复制"), 1400);
-  });
-}
-
-function setEnvBadge() {
-  const isLocal = location.protocol === "file:" || location.hostname === "localhost";
-  const badge = document.getElementById("env-badge");
-  badge.textContent = isLocal ? "本地预览" : location.host;
-}
-
-// ===== 一键生成（调后端 API）=====
-function getApiBase() {
-  const q = new URLSearchParams(location.search).get("api");
-  if (q) return q.replace(/\/$/, "");
-  const input = document.getElementById("api-base-input")?.value.trim() || "";
-  const stored = localStorage.getItem("aiMediaApiBase") || "";
-  const base = input || stored;
-  if (base) return base.replace(/\/$/, "");
-  // 本地调试：直接访问 http://localhost:8000，API 与页面同域
-  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
-  // 线上页面需手动填入本地/隧道后端地址
-  return "";
-}
-
-async function checkApiStatus() {
-  const st = document.getElementById("api-base-status");
-  const base = getApiBase();
-  if (!base && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-    st.textContent = "未配置后端地址";
-    st.style.color = "#c55";
-    return;
-  }
+async function checkHealth() {
+  const dot = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
   try {
-    const r = await fetch(`${base || ""}/api/health`, { cache: "no-store" });
-    if (!r.ok) throw new Error(r.status);
-    const data = await r.json();
-    st.textContent = `后端在线 (render_video=${data.render_video})`;
-    st.style.color = "#2a6";
-  } catch (e) {
-    st.textContent = `后端不可达: ${e.message}`;
-    st.style.color = "#c55";
+    const d = await api("/api/health");
+    dot.style.background = "var(--green)";
+    dot.style.boxShadow = "0 0 8px var(--green)";
+    text.textContent = d.render_video ? "后端在线 · 渲染已启用" : "后端在线";
+  } catch {
+    dot.style.background = "var(--red)";
+    dot.style.boxShadow = "0 0 8px var(--red)";
+    text.textContent = "后端离线";
   }
 }
 
-function fillGenAccount() {
-  const sel = document.getElementById("gen-account");
-  Object.keys(ACCOUNTS).forEach((k) => {
-    const o = document.createElement("option");
-    o.value = k; o.textContent = k;
-    sel.appendChild(o);
+async function loadAccounts() {
+  try {
+    const accounts = await api("/api/accounts");
+    const sel = document.getElementById("account");
+    sel.innerHTML = "";
+    accounts.forEach(a => {
+      const o = document.createElement("option");
+      o.value = a.id;
+      o.textContent = `${a.id} · ${a.platform}`;
+      sel.appendChild(o);
+    });
+    if (!accounts.length) {
+      sel.innerHTML = '<option value="douyin-default">douyin-default</option>';
+    }
+  } catch {
+    document.getElementById("account").innerHTML = '<option value="douyin-default">douyin-default</option>';
+  }
+}
+
+function renderChips() {
+  const wrap = document.getElementById("chips");
+  SUGGESTED_TOPICS.forEach(t => {
+    const c = document.createElement("span");
+    c.className = "chip";
+    c.textContent = t;
+    c.onclick = () => { document.getElementById("topic").value = t; };
+    wrap.appendChild(c);
   });
 }
 
-let genTimer = null;
+// ===== Generate =====
+async function startGenerate() {
+  const topic = document.getElementById("topic").value.trim();
+  const account = document.getElementById("account").value;
+  if (!topic) { document.getElementById("topic").focus(); return; }
+
+  const btn = document.getElementById("gen-btn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 生成中';
+
+  // Show progress
+  document.getElementById("progress-card").classList.add("active");
+  document.getElementById("result-card").classList.remove("active");
+  document.getElementById("progress-status").textContent = "queued";
+  document.getElementById("progress-status").className = "progress-status queued";
+  document.getElementById("progress-title").textContent = "任务已提交…";
+  document.getElementById("log-box").textContent = "等待日志…";
+  renderSteps(-1);
+
+  try {
+    const d = await api("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ account, steps: "all", topic })
+    });
+    currentJobId = d.job_id;
+    pollJob(d.job_id);
+  } catch (e) {
+    document.getElementById("progress-status").textContent = "提交失败";
+    document.getElementById("progress-status").className = "progress-status failed";
+    document.getElementById("log-box").textContent = "错误：" + e.message;
+    btn.disabled = false;
+    btn.textContent = "生成视频";
+  }
+}
+
+function renderSteps(activeStep) {
+  const track = document.getElementById("steps-track");
+  const labels = document.getElementById("step-labels");
+  track.innerHTML = "";
+  labels.innerHTML = "";
+  STEP_NAMES.forEach((name, i) => {
+    const bar = document.createElement("div");
+    bar.className = "step-bar";
+    if (i < activeStep) bar.classList.add("fill");
+    else if (i === activeStep) bar.classList.add("active");
+    track.appendChild(bar);
+
+    const label = document.createElement("div");
+    label.className = "step-label";
+    if (i < activeStep) label.classList.add("done");
+    else if (i === activeStep) label.classList.add("active");
+    label.textContent = name;
+    labels.appendChild(label);
+  });
+}
+
+function parseStepFromLog(log) {
+  if (!log) return -1;
+  const lines = log.split("\n");
+  const stepMap = {
+    "topic_mining": 0, "script_writing": 1, "subtitle_dub": 2,
+    "video_gen": 3, "distribution": 4, "review": 5,
+  };
+  let current = -1;
+  for (const line of lines) {
+    // orchestrator 输出格式: "--- 步骤: topic_mining ---"
+    const m = line.match(/步骤:\s*(\w+)/);
+    if (m && stepMap[m[1]] !== undefined) current = stepMap[m[1]];
+    // Remotion 渲染阶段
+    if (line.includes("Encoded") || line.includes("remotion")) current = 3;
+  }
+  return current;
+}
+
 function pollJob(jobId) {
-  const base = getApiBase();
-  fetch(`${base}/api/job/${jobId}`).then((r) => r.json()).then((j) => {
-    const st = document.getElementById("gen-state");
-    st.textContent = `状态：${j.status}`;
-    st.className = "gen-state " + (j.status || "");
-    document.getElementById("gen-log").textContent = j.log_tail || "";
-    if (j.status === "done" || j.status === "failed") {
-      clearInterval(genTimer);
-      document.getElementById("gen-btn").disabled = false;
-      const v = document.getElementById("gen-video");
-      if (j.videos && j.videos.length) {
-        v.innerHTML = `<video src="${base}/api/file?path=${encodeURIComponent(j.videos[0].path)}" controls></video>`;
-      } else if (j.status === "done") {
-        v.innerHTML = `<p class="hint">流程跑完，但本次无视频产物（视频渲染需后端装好 Remotion/ffmpeg 并开启 RENDER_VIDEO）。可在“账号配置/命令中心”检查各步产出。</p>`;
+  if (pollTimer) clearInterval(pollTimer);
+  const doPoll = async () => {
+    try {
+      const j = await api(`/api/job/${jobId}`);
+      const st = document.getElementById("progress-status");
+      st.textContent = j.status === "queued" ? "排队中" : j.status === "running" ? "运行中" : j.status === "done" ? "完成" : "失败";
+      st.className = `progress-status ${j.status}`;
+
+      const log = j.log_tail || "";
+      document.getElementById("log-box").textContent = log || "等待日志…";
+
+      const step = parseStepFromLog(log);
+      renderSteps(step);
+
+      if (j.status === "done" || j.status === "failed") {
+        clearInterval(pollTimer);
+        pollTimer = null;
+        const btn = document.getElementById("gen-btn");
+        btn.disabled = false;
+        btn.textContent = "生成视频";
+
+        if (j.status === "done" && j.videos && j.videos.length) {
+          showResult(j);
+        } else if (j.status === "done") {
+          document.getElementById("progress-title").textContent = "流程完成，无视频产物";
+        } else {
+          document.getElementById("progress-title").textContent = "生成失败";
+        }
+        loadHistory();
+      } else {
+        document.getElementById("progress-title").textContent = `正在生成: ${STEP_NAMES[step] || "处理中"}…`;
       }
+    } catch (e) {
+      document.getElementById("log-box").textContent = "轮询失败: " + e.message;
+    }
+  };
+  doPoll();
+  pollTimer = setInterval(doPoll, 2000);
+}
+
+function showResult(job) {
+  const card = document.getElementById("result-card");
+  card.classList.add("active");
+  const video = document.getElementById("result-video");
+  const v = job.videos[0];
+  video.src = `${API}/api/file?path=${encodeURIComponent(v.path)}`;
+  video.play().catch(() => {});
+
+  // Actions
+  const actions = document.getElementById("result-actions");
+  actions.innerHTML = "";
+  const dl = document.createElement("a");
+  dl.className = "dl-btn";
+  dl.href = `${API}/api/file?path=${encodeURIComponent(v.path)}`;
+  dl.download = v.name;
+  dl.textContent = "下载 MP4";
+  actions.appendChild(dl);
+
+  // Artifacts
+  const list = document.getElementById("artifacts-list");
+  list.innerHTML = "";
+  (job.artifacts || []).forEach(a => {
+    if (a.is_video) return;
+    const item = document.createElement("div");
+    item.className = "artifact-item";
+    const sz = a.size > 1024 ? (a.size / 1024).toFixed(1) + "KB" : a.size + "B";
+    item.innerHTML = `<span class="name">${a.name}</span><span class="size">${sz} · <a href="${API}/api/file?path=${encodeURIComponent(a.path)}" download>下载</a></span>`;
+    list.appendChild(item);
+  });
+  document.getElementById("artifacts-toggle").onclick = () => {
+    list.classList.toggle("open");
+  };
+}
+
+// ===== History =====
+async function loadHistory() {
+  try {
+    const jobs = await api("/api/jobs");
+    const list = document.getElementById("history-list");
+    if (!jobs.length) {
+      list.innerHTML = '<div class="empty-state">暂无任务</div>';
       return;
     }
-  }).catch((e) => {
-    document.getElementById("gen-log").textContent = "轮询失败：" + e;
-  });
+    list.innerHTML = "";
+    jobs.forEach(j => {
+      const item = document.createElement("div");
+      item.className = "history-item";
+      const stText = j.status === "done" ? "完成" : j.status === "running" ? "运行中" : j.status === "queued" ? "排队" : "失败";
+      const ts = j.finished_at ? new Date(j.finished_at * 1000).toLocaleTimeString("zh-CN", {hour: "2-digit", minute: "2-digit"}) : "";
+      item.innerHTML = `
+        <div class="history-left">
+          <span class="history-status ${j.status}">${stText}</span>
+          <div>
+            <div class="history-topic">${j.topic || j.account}</div>
+            <div class="history-meta">${j.account} ${ts ? "· " + ts : ""}</div>
+          </div>
+        </div>
+        <span class="history-meta">${j.job_id}</span>
+      `;
+      item.onclick = () => {
+        if (j.status === "done") {
+          currentJobId = j.job_id;
+          pollJob(j.job_id);
+        }
+      };
+      list.appendChild(item);
+    });
+  } catch {}
 }
 
-function startGenerate() {
-  const base = getApiBase();
-  const account = document.getElementById("gen-account").value;
-  const steps = document.getElementById("gen-steps").value;
-  const topic = document.getElementById("gen-topic").value.trim();
-  document.getElementById("gen-btn").disabled = true;
-  const st = document.getElementById("gen-state");
-  st.textContent = "提交中…";
-  st.className = "gen-state running";
-  document.getElementById("gen-video").innerHTML = "";
-  fetch(`${base}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ account, steps, topic: topic || null })
-  }).then((r) => r.json()).then((d) => {
-    if (!d.job_id) throw new Error("未返回 job_id");
-    genTimer = setInterval(() => pollJob(d.job_id), 2000);
-    pollJob(d.job_id);
-  }).catch((e) => {
-    st.textContent = "提交失败：" + e.message;
-    st.className = "gen-state failed";
-    document.getElementById("gen-btn").disabled = false;
-  });
-}
-
-document.addEventListener("DOMContentLoaded", () => {
-  renderPipelineMap();
-  renderAccounts();
-  renderSkills();
-  renderLists();
-  updateCmd();
-  updateConfig();
-  setEnvBadge();
-  fillGenAccount();
-
-  const apiInput = document.getElementById("api-base-input");
-  const qApi = new URLSearchParams(location.search).get("api");
-  apiInput.value = qApi ? qApi.replace(/\/$/, "") : (localStorage.getItem("aiMediaApiBase") || "");
-  apiInput.addEventListener("input", () => {
-    localStorage.setItem("aiMediaApiBase", apiInput.value.trim());
-    checkApiStatus();
-  });
-  checkApiStatus();
-
-  document.getElementById("gen-btn").addEventListener("click", startGenerate);
-
-  document.getElementById("account-select").addEventListener("change", () => { updateCmd(); updateConfig(); });
-  document.getElementById("step-select").addEventListener("change", updateCmd);
-  document.getElementById("topic-input").addEventListener("input", updateCmd);
-  document.getElementById("copy-btn").addEventListener("click", copyCmd);
+// ===== Events =====
+document.getElementById("gen-btn").addEventListener("click", startGenerate);
+document.getElementById("topic").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") startGenerate();
 });
 
+init();
 </script>
 </body>
 </html>

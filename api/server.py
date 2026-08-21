@@ -142,6 +142,27 @@ def health():
     return {"ok": True, "render_video": RENDER_VIDEO, "pipeline_dir": str(PIPELINE_DIR)}
 
 
+@app.get("/api/accounts")
+def list_accounts():
+    """列出 config/accounts/ 下所有账号配置，前端动态加载。"""
+    acc_dir = REPO_ROOT / "config" / "accounts"
+    out = []
+    if acc_dir.exists():
+        for p in sorted(acc_dir.glob("*.json")):
+            try:
+                cfg = json.loads(p.read_text(encoding="utf-8"))
+                acc = cfg.get("account", {})
+                out.append({
+                    "id": p.stem,
+                    "platform": acc.get("platform", ""),
+                    "niche": acc.get("niche", ""),
+                    "language": acc.get("language", "zh"),
+                })
+            except Exception:
+                pass
+    return out
+
+
 @app.post("/api/generate")
 def generate(body: dict):
     account = body.get("account")
@@ -167,7 +188,9 @@ def generate(body: dict):
 @app.get("/api/jobs")
 def list_jobs():
     with jobs_lock:
-        return [{"job_id": j["job_id"], "account": j["account"], "status": j["status"]}
+        return [{"job_id": j["job_id"], "account": j["account"], "topic": j.get("topic") or "",
+                 "status": j["status"],
+                 "finished_at": j.get("finished_at")}
                 for j in sorted(jobs.values(), key=lambda x: x["created_at"], reverse=True)]
 
 
