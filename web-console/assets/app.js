@@ -158,7 +158,10 @@ function setEnvBadge() {
 function getApiBase() {
   const q = new URLSearchParams(location.search).get("api");
   if (q) return q.replace(/\/$/, "");
-  return ""; // 同域；线上改为后端 Worker 地址（如 https://ai-media-worker.xxx.workers.dev）
+  // 本地调试：http://localhost:8080/?api=http://localhost:8000
+  // 线上：通过 Cloudflare Tunnel 暴露的本地后端（api.loveshop.us.ci）
+  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
+  return "https://api.loveshop.us.ci";
 }
 
 function fillGenAccount() {
