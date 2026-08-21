@@ -13,3 +13,7 @@ env/
 
 # 系统
 .DS_Store
+
+# 本地运行时文件
+*.pid
+api.log
