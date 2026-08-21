@@ -30,6 +30,8 @@ rm -f "$PIDFILE"
 
 # 3. 启动后端（监听 0.0.0.0:8000），脱离当前 shell/终端
 #    macOS 没有 setsid，用 nohup + disown 保证 Terminal 关闭后仍能运行。
+#    RENDER_VIDEO=1 开启 Remotion 真实出片（需先 cd video/remotion-app && npm install）
+export RENDER_VIDEO=1
 nohup "$VENV/bin/python" "$REPO/api/server.py" > "$LOGFILE" 2>&1 &
 SRV=$!
 disown $SRV 2>/dev/null || true

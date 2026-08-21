@@ -17,3 +17,10 @@ env/
 # 本地运行时文件
 *.pid
 api.log
+
+# 前端依赖与生成物
+node_modules/
+video/remotion-app/scenes.generated.json
+video/remotion-app/out/
+*.mp4
+

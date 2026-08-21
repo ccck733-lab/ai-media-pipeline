@@ -36,6 +36,13 @@ RENDER_VIDEO = os.environ.get("RENDER_VIDEO", "0") == "1"
 NODE = os.environ.get("NODE", "node")
 NPX = os.environ.get("NPX", "npx")
 
+# Remotion 渲染需要浏览器。本机受限网络无法下载 Remotion 专用 Chrome，
+# 优先指向系统已安装的 Google Chrome（macOS 常见路径）。
+if "REMOTION_CHROME_EXECUTABLE_PATH" not in os.environ:
+    _mac_chrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    if os.path.exists(_mac_chrome):
+        os.environ["REMOTION_CHROME_EXECUTABLE_PATH"] = _mac_chrome
+
 app = FastAPI(title="ai-media-pipeline API", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
@@ -66,11 +73,11 @@ def _scan_artifacts(account: str) -> list[dict]:
     return out
 
 
-def _run_command(cmd: list[str], log_path: Path) -> int:
+def _run_command(cmd: list[str], log_path: Path, cwd: Path | None = None) -> int:
     with open(log_path, "a", encoding="utf-8") as log:
         log.write("\n$ " + " ".join(cmd) + "\n")
         log.flush()
-        proc = subprocess.run(cmd, cwd=str(REPO_ROOT), stdout=log, stderr=subprocess.STDOUT)
+        proc = subprocess.run(cmd, cwd=str(cwd or REPO_ROOT), stdout=log, stderr=subprocess.STDOUT)
         return proc.returncode
 
 
@@ -82,8 +89,16 @@ def _try_render_video(account: str, log_path: Path) -> None:
     if not (proj / "package.json").exists():
         return
     try:
-        _run_command([NODE, str(proj / "node_modules" / ".bin" / "remotion"), "render", "AIConsole",
-                      "--output", str(WORKSPACE_DIR / account / "video_gen" / "output.mp4")], log_path)
+        out = WORKSPACE_DIR / account / "video_gen" / "output.mp4"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        # 在工程目录内运行渲染，entry-point 用相对路径，避免仓库根目录找不到 src/index.ts
+        render_cmd = [NODE, "node_modules/.bin/remotion", "render", "src/index.ts",
+                      "AIConsole", "--output", str(out)]
+        # 若 video_gen 步骤已把脚本拆成场景数据，则作为 props 注入
+        scenes_json = proj / "scenes.generated.json"
+        if scenes_json.exists():
+            render_cmd += ["--props", str(scenes_json)]
+        _run_command(render_cmd, log_path, cwd=proj)
     except Exception as e:  # noqa
         with open(log_path, "a", encoding="utf-8") as log:
             log.write(f"[render] skipped: {e}\n")
@@ -99,7 +114,7 @@ def run_job(job_id: str, account: str, topic: str | None, steps: str):
 
     try:
         cmd = [PYTHON, str(PIPELINE_DIR / "orchestrator.py"), "--account", account, "--step", steps]
-        if steps == "script_writing" and topic:
+        if topic:
             cmd += ["--topic", topic]
         rc = _run_command(cmd, log_path)
 
