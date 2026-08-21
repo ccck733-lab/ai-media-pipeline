@@ -28,9 +28,9 @@ if [ -f "$PIDFILE" ]; then
 fi
 rm -f "$PIDFILE"
 
-# 3. 启动后端（监听 0.0.0.0:8000），完全脱离当前 shell/终端
-#    使用 setsid 建立新会话，并用 disown 解除 job 关联。
-setsid "$VENV/bin/python" "$REPO/api/server.py" > "$LOGFILE" 2>&1 &
+# 3. 启动后端（监听 0.0.0.0:8000），脱离当前 shell/终端
+#    macOS 没有 setsid，用 nohup + disown 保证 Terminal 关闭后仍能运行。
+nohup "$VENV/bin/python" "$REPO/api/server.py" > "$LOGFILE" 2>&1 &
 SRV=$!
 disown $SRV 2>/dev/null || true
 echo $SRV > "$PIDFILE"
