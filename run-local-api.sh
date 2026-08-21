@@ -17,6 +17,15 @@ if [ ! -x "$VENV/bin/python" ]; then
 fi
 "$VENV/bin/pip" install -q --disable-pip-version-check -r "$REPO/api/requirements.txt"
 
+# 1.5 加载本地密钥（若存在）。.env.local 已被 .gitignore 排除，不会进 git。
+#     用法：在 .env.local 写 AI_MEDIA_LLM_BASE_URL / AI_MEDIA_LLM_API_KEY / AI_MEDIA_LLM_MODEL
+if [ -f "$REPO/.env.local" ]; then
+  set -a
+  . "$REPO/.env.local"
+  set +a
+  echo "→ 已加载 .env.local 中的 LLM 配置"
+fi
+
 # 2. 如果已有后端在跑，先停掉（避免端口冲突）
 if [ -f "$PIDFILE" ]; then
   OLD_PID="$(cat "$PIDFILE")"

@@ -11,6 +11,9 @@ env/
 .env
 *.local
 
+# 账号配置（可能含 LLM api_key，勿入 git；本地保留供后端读取）
+config/accounts/
+
 # 系统
 .DS_Store
 

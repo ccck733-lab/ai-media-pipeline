@@ -7,16 +7,21 @@
    保证一键流程始终能产出可读、可驱动画面的脚本。
 """
 import json
+import os
 import re
 import urllib.request
 from pipeline.steps import step_dir, save, read, prompt_path, ROOT
 
 
 def _call_llm(sw: dict, system: str, user: str) -> str | None:
-    """调用 OpenAI 兼容接口；任何异常返回 None（交由降级逻辑处理）。"""
-    base = (sw.get("base_url") or "").strip()
-    key = (sw.get("api_key") or "").strip()
-    model = (sw.get("model") or "").strip()
+    """调用 OpenAI 兼容接口；任何异常返回 None（交由降级逻辑处理）。
+
+    取值优先级：账号配置(script_writer) > 环境变量 AI_MEDIA_LLM_*。
+    用环境变量方式可避免把 key 写进会被 git 追踪的 json 文件。
+    """
+    base = (sw.get("base_url") or "").strip() or os.environ.get("AI_MEDIA_LLM_BASE_URL", "").strip()
+    key = (sw.get("api_key") or "").strip() or os.environ.get("AI_MEDIA_LLM_API_KEY", "").strip()
+    model = (sw.get("model") or "").strip() or os.environ.get("AI_MEDIA_LLM_MODEL", "").strip()
     if not (base and key and model):
         return None
     try:
