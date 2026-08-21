@@ -1,0 +1,20 @@
+# Cloudflare Containers 配置（2026 当前模型：基于 Durable Object 的 Container）
+# 构建上下文 = 仓库根（本文件所在目录），Dockerfile 用 ./Dockerfile，故 COPY . 能拿到完整仓库。
+name = "ai-media-worker"
+main = "api/worker.js"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[containers]]
+class_name = "AiMediaContainer"
+image = "./Dockerfile"
+max_instances = 5
+
+[durable_objects]
+bindings = [
+  { name = "AI_MEDIA_CONTAINER", class_name = "AiMediaContainer" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["AiMediaContainer"]

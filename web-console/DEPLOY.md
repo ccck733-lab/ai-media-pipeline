@@ -1,7 +1,7 @@
 # 部署 AI 自媒体控制台到 Cloudflare Pages
 
 本控制台是**纯静态站点**（`web-console/` 目录），无构建步骤，可直接上传到 Cloudflare Pages。
-它不能在线上执行 Python 流水线——只是命令生成 + 配置查看 + 流程参考，真实执行请在本机流水线目录跑命令。
+它前端是纯静态站（命令生成 + 配置查看 + 流程参考）；接上路径 D 的后端后，控制台即可在线上一键执行整条流水线。
 
 > 前提：你的 Cloudflare API token（cfat_3DSy…）此前失效，自动化部署被卡，故走**面板手动上传**路径（无需 token）。
 
@@ -60,32 +60,47 @@
 
 ## 路径 D：Cloudflare Containers 全链路一键（前端 Pages + 后端 Container）
 
-> 满足“部署到网站 + 一键生成视频”：前端静态站部署在 loveshop.us.ci（Pages），后端 FastAPI 跑在 Cloudflare Containers，执行整条流水线（含爬取→脚本→配音→Remotion 渲染→分发清单）。
-> ⚠️ Containers 为 beta，需你在 Cloudflare 账号开启 Containers 权限；`wrangler login` 走 GitHub OAuth，不受 API token 失效影响。
+> 满足“部署到网站 + 一键生成视频”：前端静态站部署在 loveshop.us.ci（Pages），后端 FastAPI 跑在 Cloudflare Containers 执行整条流水线（含爬取→脚本→配音→Remotion 渲染→分发清单）。
+> ⚠️ Containers 当前基于 **Durable Object** 模型（不是早期 beta）；本机需 **Docker 在运行** + 账号开启 Containers 权限；`wrangler login` 走 GitHub OAuth，不受 API token 失效影响。
 
-### 后端镜像（api/）
-- `api/server.py`：FastAPI，POST `/api/generate` 触发流水线、GET `/api/job/<id>` 查状态/日志/产物、GET `/api/file` 下载产物。
-- `api/Dockerfile`：python + node + ffmpeg，装依赖并拷入整仓库。
-- `api/requirements.txt`：fastapi / uvicorn。
-- 默认 `RENDER_VIDEO=0`（不真正渲染）；后端装好 Remotion 工程并设 `RENDER_VIDEO=1` 才会出 mp4。
+### 后端文件（已按 2026 Container API 重写）
+- `api/server.py`：FastAPI，POST `/api/generate`、GET `/api/job/<id>`、GET `/api/file`、GET `/api/health`。
+- `Dockerfile`（**仓库根**）：python3.12 + node20 + ffmpeg，构建上下文=仓库根，`COPY . /app` 复制完整仓库。
+- `.dockerignore`：排除 `.git` / `workspace` / `node_modules` 等。
+- `api/worker.js`：继承 `Container` 类的 Worker，把 `/api/*` 代理给 Container（defaultPort 8000）。
+- `wrangler.toml`（**仓库根**）：`containers` + `durable_objects` 绑定 + `migrations` 配置。
+- 默认 `RENDER_VIDEO=0`（不渲染）；装好 Remotion 并设 `RENDER_VIDEO=1` 才出 mp4。
 
-### 接线（api/wrangler.toml + api/worker.js）
-- Worker 把 `/api/*` 代理给 Container。部署：`cd api && wrangler deploy`（需 Containers beta + 登录）。
-- 让前端能调到后端，二选一：
-  - (a) Cloudflare Routes：把 `loveshop.us.ci/api/*` 指给该 Worker（`/*` 仍给 Pages）；前端 `API_BASE` 留空（同域）。
-  - (b) 用 Worker 默认子域 `https://ai-media-worker.<sub>.workers.dev`，把 `app.js` 顶部 `getApiBase()` 默认改为该地址；本地调试可用 `?api=http://localhost:8000`。
+### 本机前置（一次性）
+1. 安装 wrangler：`npm install -g wrangler`（或 `brew install wrangler`）
+2. 安装并启动 **Docker Desktop**，`docker info` 确认 daemon 在跑（首部署必须用 Docker 构建镜像）
+3. `wrangler login` → GitHub OAuth 授权
 
-### 全链路前提（必须在后端环境准备）
+### 部署
+```bash
+cd ai-media-pipeline          # 仓库根（wrangler.toml 在此）
+npx wrangler deploy
+# 首次构建+推送镜像较慢；部署后等几分钟容器就绪
+```
+部署后在面板 **Workers & Pages → Containers** 看状态/日志。
+
+### 让前端调到后端（推荐同域路由，无 CORS）
+Cloudflare 面板 → `loveshop.us.ci` 域名 → **Workers 路由** → 添加：
+- 路由：`loveshop.us.ci/api/*`
+- 服务：`ai-media-worker`
+前端 `API_BASE` 留空（同域 `/api`），无需改代码。
+
+### 全链路真正出片前提（后端环境准备）
 - MediaCrawler 工程 + 登录态 cookies（爬取步骤）。
 - PyVideoTrans 路径（字幕配音）。
-- Remotion 工程 `npm install` 就绪 + `RENDER_VIDEO=1`（出片）。
+- Remotion 工程 `npm install` 就绪 + `RENDER_VIDEO=1`（出片；默认 0 只产出脚本/素材）。
 - ffmpeg（Dockerfile 已装）。
 
-### 部署步骤
-1. `cd api && wrangler deploy` → 后端上线（Worker + Container）。
-2. 前端照路径 C 连 Git 部署 `web-console/` 到 Pages（输出目录 `web-console`），Custom domains 绑 `loveshop.us.ci`（根域名覆盖电商站）。
-3. 配置 `/api/*` 路由指向 Worker（或改 `API_BASE`）。
-4. 控制台点「⑦ 一键生成视频」→ 填账号+话题 → 看进度 → 视频就绪即内嵌播放。
+### 验证
+```bash
+curl https://loveshop.us.ci/api/health   # 应返回 {"status":"ok",...}
+```
+控制台点「⑦ 一键生成视频」→ 填账号+话题 → 看进度 → 视频就绪即内嵌播放。
 
 ---
 

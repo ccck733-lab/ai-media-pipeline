@@ -1,5 +1,5 @@
 # Cloudflare Containers 镜像：跑 ai-media-pipeline 后端（FastAPI）
-# 同时装 python（编排器）+ node（Remotion 渲染）+ ffmpeg（音视频）
+# 构建上下文 = 仓库根（wrangler.toml 在此），COPY . /app 复制完整仓库（pipeline/config/video/web-console）。
 FROM python:3.12-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PORT=8000 \
     RENDER_VIDEO=0
 
-# 系统依赖 + ffmpeg + node 20
+# 系统依赖 + ffmpeg + node 20（Remotion 渲染用）
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg curl ca-certificates gnupg git \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
