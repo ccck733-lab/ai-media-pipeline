@@ -55,10 +55,10 @@ import { Composition } from "remotion";
 type Scene = { text: string; color: string; bg: string };
 
 const DEFAULT_SCENES: Scene[] = [
-  { text: "钩子：反常识开场", color: "#0b0b0b", bg: "#fff7e6" },
-  { text: "一个具体例子", color: "#111", bg: "#e6f7ff" },
-  { text: "可操作结论", color: "#111", bg: "#e6ffe6" },
-  { text: "评论区告诉我下一个问题", color: "#fff", bg: "#111" },
+  { text: "核心观点", color: "#0b0b0b", bg: "#fff7e6" },
+  { text: "关键洞察", color: "#111", bg: "#e6f7ff" },
+  { text: "行动清单", color: "#111", bg: "#e6ffe6" },
+  { text: "下期想听什么？评论区告诉我", color: "#fff", bg: "#111" },
 ];
 
 const SCENE_LEN = 45;
@@ -144,12 +144,13 @@ def _build_scenes_from_script(account: str) -> list[str]:
     return real[:6]
 
 
-# 真实句子不足时混入的默认画面，保证视频至少有 4 屏内容
+# 真实成稿句不足时混入的默认画面，保证视频至少有 4 屏内容。
+# 注意：必须是「观众能看懂的内容卡片」，不能用开发占位词（如「钩子：反常识开场」）。
 _FALLBACK_SCENES = [
-    "钩子：反常识开场",
-    "一个具体例子",
-    "可操作结论",
-    "评论区告诉我下一个问题",
+    "核心观点",
+    "关键洞察",
+    "行动清单",
+    "下期想听什么？评论区告诉我",
 ]
 
 
