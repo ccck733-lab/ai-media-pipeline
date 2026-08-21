@@ -1,0 +1,16 @@
+{
+  "_comment": "全局流水线配置。步骤顺序即执行顺序；外部工具缺失时编排器会优雅降级并产出下一步指引。",
+  "pipeline": {
+    "name": "ai-self-media-automation",
+    "version": "1.0.0",
+    "steps": [
+      "topic_mining",
+      "script_writing",
+      "subtitle_dub",
+      "video_gen",
+      "distribution",
+      "review"
+    ],
+    "accounts_dir": "config/accounts"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "remotion-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion render <CompName> out/video.mp4",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "remotion": "latest",
+    "@remotion/cli": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  }
+}

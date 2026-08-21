@@ -1,0 +1,40 @@
+{
+  "_comment": "复制本文件并按账号修改，每个账号一套配置。字段含义见 README。",
+  "account": {
+    "platform": "douyin",
+    "name": "my-douyin",
+    "niche": "知识科普",
+    "style_ref": "config/style/douyin-style.md",
+    "target_length_sec": 60,
+    "language": "zh"
+  },
+  "topic_mining": {
+    "source": "mediacrawler",
+    "mediacrawler_path": "/path/to/MediaCrawler",
+    "keywords": ["行业关键词1", "行业关键词2", "竞品账号"],
+    "top_n": 10
+  },
+  "script_writer": {
+    "model": "your-llm-endpoint-or-leave-empty-to-use-workbuddy",
+    "de_ai": true,
+    "safety_review": true
+  },
+  "subtitle_dub": {
+    "engine": "pyvideotrans",
+    "pyvideotrans_path": "/path/to/PyVideoTrans",
+    "target_lang": "en"
+  },
+  "video_gen": {
+    "engine": "remotion",
+    "remotion_project": "video/remotion-app",
+    "hyperframes": false
+  },
+  "distribution": {
+    "platforms": ["douyin"],
+    "schedule_cron": "0 19 * * *"
+  },
+  "review": {
+    "scrape_comments": true,
+    "iterate": true
+  }
+}

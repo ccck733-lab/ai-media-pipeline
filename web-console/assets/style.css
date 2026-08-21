@@ -1,0 +1,167 @@
+:root {
+  --bg: #f6f7f9;
+  --card: #ffffff;
+  --ink: #1d2129;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --brand: #2f6bff;
+  --brand-soft: #eaf1ff;
+  --green: #18a058;
+  --amber: #d97706;
+  --red: #e5484d;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topbar h1 { margin: 0; font-size: 19px; }
+.topbar .sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.badge {
+  background: var(--brand-soft);
+  color: var(--brand);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+main {
+  max-width: 960px;
+  margin: 24px auto;
+  padding: 0 18px;
+  display: grid;
+  gap: 18px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
+}
+.card h2 { margin: 0 0 6px; font-size: 16px; }
+.hint { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+
+/* 流程地图 */
+.pipeline-map {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+}
+.step {
+  flex: 1 1 140px;
+  background: var(--brand-soft);
+  border: 1px solid #d4e2ff;
+  border-radius: 10px;
+  padding: 12px 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f3a8a;
+  position: relative;
+}
+.step small { display: block; font-weight: 400; color: #4b617f; margin-top: 4px; font-size: 11px; }
+.step .arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--brand); font-size: 16px; }
+
+/* 命令中心 */
+.cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.cmd-grid .topic { grid-column: 1 / -1; }
+label { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); gap: 5px; }
+select, input[type="text"] {
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  background: #fff;
+}
+select:focus, input:focus { outline: 2px solid var(--brand-soft); border-color: var(--brand); }
+
+.cmd-box {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  background: #0f172a;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.cmd-box code {
+  flex: 1;
+  color: #d7e3ff;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  align-self: center;
+}
+#copy-btn {
+  border: none;
+  background: var(--brand);
+  color: #fff;
+  border-radius: 8px;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#copy-btn:active { transform: scale(.97); }
+.run-tip { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.run-tip code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; }
+
+.config-view {
+  background: #0f172a;
+  color: #cfe3ff;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  overflow: auto;
+  max-height: 360px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* 技能卡 */
+.skills-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.skill {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px;
+  background: #fafbfc;
+}
+.skill h3 { margin: 0 0 6px; font-size: 14px; color: var(--brand); }
+.skill p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+details { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; background: #fafbfc; }
+summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+details ul { margin: 10px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink); }
+details li { margin-bottom: 4px; }
+
+.deploy code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; }
+
+footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0 36px; }

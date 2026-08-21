@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 自媒体自动化控制台 · ai-media-pipeline</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>AI 自媒体自动化控制台</h1>
+      <p class="sub">ai-media-pipeline · 6 步闭环 · 配置驱动 · 按账号克隆</p>
+    </div>
+    <span class="badge" id="env-badge">本地 / 待部署</span>
+  </header>
+
+  <main>
+    <!-- 流程地图 -->
+    <section class="card">
+      <h2>① 流程地图</h2>
+      <p class="hint">选题拆解 → 写脚本(去AI+安全审查) → 字幕配音 → 视频画面 → 多平台分发 → 评论复盘(反哺选题)</p>
+      <div id="pipeline-map" class="pipeline-map"></div>
+    </section>
+
+    <!-- 命令中心 -->
+    <section class="card">
+      <h2>② 命令中心</h2>
+      <p class="hint">选账号与步骤，生成可在本地终端执行的命令（本控制台为静态页，不能在线跑 Python，命令请在本机流水线目录执行）。</p>
+      <div class="cmd-grid">
+        <label>账号
+          <select id="account-select"></select>
+        </label>
+        <label>步骤
+          <select id="step-select">
+            <option value="all">全部 (all)</option>
+            <option value="topic_mining">① 选题拆解</option>
+            <option value="script_writing">② 写脚本+去AI+审查</option>
+            <option value="subtitle_dub">③ 字幕配音</option>
+            <option value="video_gen">④ 视频画面</option>
+            <option value="distribution">⑤ 多平台分发</option>
+            <option value="review">⑥ 评论复盘</option>
+          </select>
+        </label>
+        <label class="topic">话题 (仅脚本步骤需要)
+          <input id="topic-input" type="text" placeholder="例如：为什么房价在跌" />
+        </label>
+      </div>
+      <div class="cmd-box">
+        <code id="cmd-output">python3 pipeline/orchestrator.py --account douyin-default --step all</code>
+        <button id="copy-btn" type="button">复制</button>
+      </div>
+      <div class="run-tip" id="run-tip"></div>
+    </section>
+
+    <!-- 配置查看 -->
+    <section class="card">
+      <h2>③ 账号配置</h2>
+      <p class="hint">当前选中账号的完整配置（对应 config/accounts/&lt;账号&gt;.json）。</p>
+      <pre id="config-view" class="config-view"></pre>
+    </section>
+
+    <!-- 长效技能 -->
+    <section class="card">
+      <h2>④ 三类长效技能</h2>
+      <div id="skills-grid" class="skills-grid"></div>
+    </section>
+
+    <!-- 安全 / 去AI 速查 -->
+    <section class="card">
+      <h2>⑤ 安全 & 去AI 速查</h2>
+      <details>
+        <summary>去 AI 感规则（prompts/de_ai_rules.md）</summary>
+        <ul id="deai-list"></ul>
+      </details>
+      <details>
+        <summary>发布前安全审查清单（prompts/safety_checklist.md）</summary>
+        <ul id="safety-list"></ul>
+      </details>
+    </section>
+
+    <section class="card deploy">
+      <h2>⑥ 部署到 Cloudflare Pages</h2>
+      <p class="hint">本控制台本身是静态页，不能在线跑 Python。部署步骤见 <a href="DEPLOY.md">DEPLOY.md</a>：在 Cloudflare 面板手动上传 <code>web-console/</code> 目录，绑定 <code>loveshop.us.ci</code>（根域名，会顶替现有电商站）或 <code>tools.loveshop.us.ci</code>（子域名，保留店铺）。</p>
+    </section>
+  </main>
+
+  <footer>
+    <span>WorkBuddy 构建 · 静态控制台 · 真实执行请在本地流水线目录</span>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>
