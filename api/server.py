@@ -6,8 +6,8 @@ AI 自媒体流水线后端 API（FastAPI）
 - GET  /api/file      下载产物（仅限 workspace 内）
 - GET  /api/health    健康检查
 
-前端部署在 Cloudflare Pages（loveshop.us.ci），后端跑在 Cloudflare Containers / 任意容器，
-前端把请求发到本服务即可。流水线各步在工具缺失时优雅降级并标记 pending。
+前端可部署在 Cloudflare Pages（loveshop.us.ci），也可直接由本服务在本地托管：启动后访问
+http://localhost:8000 即可一键生成。流水线各步在工具缺失时优雅降级并标记 pending。
 """
 import os
 import sys
@@ -21,10 +21,12 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PIPELINE_DIR = REPO_ROOT / "pipeline"
 WORKSPACE_DIR = REPO_ROOT / "workspace"
+WEB_CONSOLE_DIR = REPO_ROOT / "web-console"
 JOBS_DIR = WORKSPACE_DIR / ".jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -177,6 +179,11 @@ def get_file(path: str = Query(...)):
     if not str(candidate).startswith(str(WORKSPACE_DIR.resolve())) or not candidate.is_file():
         raise HTTPException(403, "forbidden path")
     return FileResponse(str(candidate))
+
+
+# 在本地运行时，把前端控制台也一并托管在根路径，这样直接访问 http://localhost:8000 即可使用。
+if (WEB_CONSOLE_DIR / "index.html").exists():
+    app.mount("/", StaticFiles(directory=str(WEB_CONSOLE_DIR), html=True), name="static")
 
 
 if __name__ == "__main__":

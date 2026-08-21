@@ -158,10 +158,34 @@ function setEnvBadge() {
 function getApiBase() {
   const q = new URLSearchParams(location.search).get("api");
   if (q) return q.replace(/\/$/, "");
-  // 本地调试：http://localhost:8080/?api=http://localhost:8000
-  // 线上：通过 Cloudflare Tunnel 暴露的本地后端（api.loveshop.us.ci）
+  const input = document.getElementById("api-base-input")?.value.trim() || "";
+  const stored = localStorage.getItem("aiMediaApiBase") || "";
+  const base = input || stored;
+  if (base) return base.replace(/\/$/, "");
+  // 本地调试：直接访问 http://localhost:8000，API 与页面同域
   if (location.hostname === "localhost" || location.hostname === "127.0.0.1") return "";
-  return "https://api.loveshop.us.ci";
+  // 线上页面需手动填入本地/隧道后端地址
+  return "";
+}
+
+async function checkApiStatus() {
+  const st = document.getElementById("api-base-status");
+  const base = getApiBase();
+  if (!base && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+    st.textContent = "未配置后端地址";
+    st.style.color = "#c55";
+    return;
+  }
+  try {
+    const r = await fetch(`${base || ""}/api/health`, { cache: "no-store" });
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    st.textContent = `后端在线 (render_video=${data.render_video})`;
+    st.style.color = "#2a6";
+  } catch (e) {
+    st.textContent = `后端不可达: ${e.message}`;
+    st.style.color = "#c55";
+  }
 }
 
 function fillGenAccount() {
@@ -231,6 +255,16 @@ document.addEventListener("DOMContentLoaded", () => {
   updateConfig();
   setEnvBadge();
   fillGenAccount();
+
+  const apiInput = document.getElementById("api-base-input");
+  const qApi = new URLSearchParams(location.search).get("api");
+  apiInput.value = qApi ? qApi.replace(/\/$/, "") : (localStorage.getItem("aiMediaApiBase") || "");
+  apiInput.addEventListener("input", () => {
+    localStorage.setItem("aiMediaApiBase", apiInput.value.trim());
+    checkApiStatus();
+  });
+  checkApiStatus();
+
   document.getElementById("gen-btn").addEventListener("click", startGenerate);
 
   document.getElementById("account-select").addEventListener("change", () => { updateCmd(); updateConfig(); });

@@ -58,7 +58,35 @@
 
 ---
 
-## 路径 D：Cloudflare Containers 全链路一键（前端 Pages + 后端 Container）
+## 路径 D：本地后端直接托管控制台（当前最稳，无需隧道）
+
+> 受本机网络/代理限制，ngrok / cloudflared 等隧道在该设备上无法稳定暴露本地后端。最简单可靠的方案是：FastAPI 后端启动后**直接托管** `web-console/`，访问 `http://localhost:8000` 即可一键生成。
+
+### 启动
+
+```bash
+cd ai-media-pipeline
+./run-local-api.sh
+# 或手动：
+# cd api && source venv/bin/activate && python server.py
+```
+
+### 使用
+
+1. 浏览器打开 `http://localhost:8000`。
+2. 在「⑦ 一键生成视频」选择账号、步骤、话题，点按钮。
+3. 后端在本地跑完整条流水线；状态、日志、产物在页面实时刷新。
+
+### 远程/手机访问（可选）
+
+如需从其他设备访问，可继续尝试：
+- `ngrok http 127.0.0.1:8000`（当前在本机因代理限制处于 offline，可换网络再试）。
+- `cloudflared tunnel --url http://127.0.0.1:8000`（本机 7844/443 被防火墙拦截）。
+- 成功后把隧道地址填到控制台「后端 API 地址」输入框（会自动保存）。
+
+---
+
+## 路径 E：Cloudflare Containers 全链路一键（前端 Pages + 后端 Container）
 
 > 满足“部署到网站 + 一键生成视频”：前端静态站部署在 loveshop.us.ci（Pages），后端 FastAPI 跑在 Cloudflare Containers 执行整条流水线（含爬取→脚本→配音→Remotion 渲染→分发清单）。
 > ⚠️ Containers 当前基于 **Durable Object** 模型（不是早期 beta）；本机需 **Docker 在运行** + 账号开启 Containers 权限；`wrangler login` 走 GitHub OAuth，不受 API token 失效影响。
