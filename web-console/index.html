@@ -125,6 +125,19 @@ body {
 }
 @keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
+.logout-btn {
+  padding: 5px 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all .2s;
+}
+.logout-btn:hover { border-color: var(--red); color: var(--red); background: rgba(251, 113, 133, 0.1); }
+
 /* ===== Layout ===== */
 .container {
   max-width: 820px;
@@ -544,6 +557,7 @@ body {
     <div class="header-right">
       <span class="status-dot" id="status-dot"></span>
       <span id="status-text">检测中</span>
+      <button class="logout-btn" id="logout-btn" title="退出登录">🔒 退出</button>
     </div>
   </header>
 
@@ -615,8 +629,10 @@ let currentJobId = null;
 // ===== API =====
 const API = ""; // same origin
 
-async function api(path, opts) {
+async function api(path, opts = {}) {
+  opts.credentials = "same-origin";
   const r = await fetch(API + path, opts);
+  if (r.status === 401) { window.location.reload(); throw new Error("未授权"); }
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
@@ -854,6 +870,10 @@ async function loadHistory() {
 document.getElementById("gen-btn").addEventListener("click", startGenerate);
 document.getElementById("topic").addEventListener("keydown", (e) => {
   if (e.key === "Enter") startGenerate();
+});
+document.getElementById("logout-btn").addEventListener("click", async () => {
+  try { await fetch("/api/logout", { method: "POST", credentials: "same-origin" }); } catch {}
+  window.location.reload();
 });
 
 init();

@@ -14,13 +14,14 @@ import sys
 import json
 import time
 import uuid
+import secrets
 import threading
 import subprocess
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -29,6 +30,13 @@ WORKSPACE_DIR = REPO_ROOT / "workspace"
 WEB_CONSOLE_DIR = REPO_ROOT / "web-console"
 JOBS_DIR = WORKSPACE_DIR / ".jobs"
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
+
+# ===== 访问控制 =====
+# 网站访问密码（可经环境变量 APP_PASSWORD 覆盖）。空字符串表示关闭密码门。
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "victory")
+# 当前有效的会话令牌（内存态）。登录成功后刷新；进程重启需重新登录。
+_VALID_TOKEN = {"value": None}
+_AUTH_COOKIE = "wb_token"
 
 PYTHON = sys.executable
 # 是否尝试真正用 Remotion 渲染成片（需 node/npx + Remotion 工程已 npm install）。默认关，避免无工具时卡住。
@@ -50,6 +58,103 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ===== 登录页（无密码门时这份 HTML 不会被使用）=====
+LOGIN_HTML = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>访问验证 · AI 自媒体控制台</title>
+<style>
+  :root { --brand:#7c5cff; --accent:#22d3ee; --ink:#f0f0f4; --muted:#8b8b97; --bg:#07070b; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { font-family: "SF Pro Display",-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background: var(--bg); color: var(--ink); min-height:100vh; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; -webkit-font-smoothing:antialiased; }
+  .bg-orbs { position:fixed; inset:0; z-index:0; overflow:hidden; }
+  .bg-orbs span { position:absolute; border-radius:50%; filter:blur(80px); opacity:.35; animation:float 20s ease-in-out infinite; }
+  .o1 { width:480px;height:480px;background:#7c5cff;top:-120px;left:-80px; }
+  .o2 { width:420px;height:420px;background:#22d3ee;bottom:-100px;right:-60px;animation-delay:-7s; }
+  @keyframes float { 0%,100%{transform:translate(0,0) scale(1);} 33%{transform:translate(40px,-30px) scale(1.1);} 66%{transform:translate(-30px,20px) scale(.95);} }
+  .card { position:relative; z-index:1; width:min(380px,90vw); background:rgba(22,22,30,.72); border:1px solid rgba(255,255,255,.1);
+    border-radius:18px; padding:36px 32px; box-shadow:0 8px 40px rgba(0,0,0,.4); backdrop-filter:blur(20px); }
+  .logo { width:44px;height:44px;background:linear-gradient(135deg,var(--brand),var(--accent));border-radius:12px;
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:20px;margin-bottom:18px;
+    box-shadow:0 4px 16px rgba(124,92,255,.35); }
+  h1 { font-size:20px;font-weight:800;letter-spacing:-.4px;margin-bottom:6px; }
+  p.sub { font-size:13px;color:var(--muted);margin-bottom:24px; }
+  .lock { font-size:13px;color:var(--brand);font-weight:600;letter-spacing:.5px;margin-bottom:10px;display:flex;gap:6px;align-items:center; }
+  input { width:100%;padding:14px 16px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.1);border-radius:12px;
+    color:var(--ink);font-size:15px;font-family:inherit;outline:none;transition:border-color .25s,box-shadow .25s; }
+  input:focus { border-color:var(--brand);box-shadow:0 0 0 4px rgba(124,92,255,.12); }
+  input::placeholder { color:#5a5a66; }
+  button { width:100%;margin-top:14px;padding:14px;border:none;border-radius:12px;cursor:pointer;font-size:15px;font-weight:700;
+    color:#fff;background:linear-gradient(135deg,var(--brand),#9d7bff);font-family:inherit;
+    box-shadow:0 6px 24px rgba(124,92,255,.35);transition:transform .12s,box-shadow .25s; }
+  button:hover { transform:translateY(-2px);box-shadow:0 10px 32px rgba(124,92,255,.45); }
+  button:active { transform:translateY(0) scale(.98); }
+  button:disabled { opacity:.6;cursor:not-allowed;transform:none; }
+  .msg { font-size:12.5px;margin-top:12px;min-height:18px;text-align:center; }
+  .msg.err { color:#fb7185; } .msg.ok { color:#34d399; }
+</style>
+</head>
+<body>
+  <div class="bg-orbs"><span class="o1"></span><span class="o2"></span></div>
+  <div class="card">
+    <div class="logo">AI</div>
+    <div class="lock">🔒 受密码保护</div>
+    <h1>进入控制台</h1>
+    <p class="sub">请输入访问密码以继续使用</p>
+    <input id="pw" type="password" placeholder="访问密码" autocomplete="current-password" autofocus />
+    <button id="go" onclick="login()">验证并进入</button>
+    <div class="msg" id="msg"></div>
+  </div>
+<script>
+  const pw = document.getElementById('pw');
+  const btn = document.getElementById('go');
+  const msg = document.getElementById('msg');
+  pw.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+  async function login() {
+    const v = pw.value;
+    if (!v) { msg.textContent = '请输入密码'; msg.className = 'msg err'; return; }
+    btn.disabled = true; btn.textContent = '验证中…';
+    try {
+      const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+        credentials:'same-origin', body: JSON.stringify({ password: v }) });
+      if (r.ok) { msg.textContent = '验证成功，进入中…'; msg.className = 'msg ok'; setTimeout(() => location.href = '/', 300); }
+      else { const d = await r.json().catch(()=>({})); msg.textContent = d.detail || '密码错误'; msg.className = 'msg err';
+        btn.disabled = false; btn.textContent = '验证并进入'; }
+    } catch (e) { msg.textContent = '网络错误'; msg.className = 'msg err'; btn.disabled = false; btn.textContent = '验证并进入'; }
+  }
+</script>
+</body>
+</html>"""
+
+# ===== 鉴权中间件：网关整站 =====
+_PUBLIC_PATHS = {"/api/health", "/api/login", "/api/logout", "/login", "/favicon.ico"}
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    # 未设置密码则完全开放
+    if not APP_PASSWORD:
+        return await call_next(request)
+    path = request.url.path
+    if path in _PUBLIC_PATHS:
+        return await call_next(request)
+    token = request.cookies.get(_AUTH_COOKIE)
+    # 必须存在且与当前有效令牌一致（令牌初始为 None，避免 None==None 误判通过）
+    authed = bool(token) and token == _VALID_TOKEN["value"]
+    if path.startswith("/api/"):
+        if not authed:
+            return JSONResponse({"error": "unauthorized"}, status_code=401)
+        return await call_next(request)
+    # 页面请求：未登录展示登录页
+    if not authed:
+        return HTMLResponse(LOGIN_HTML)
+    return await call_next(request)
+
 
 jobs: dict[str, dict] = {}
 jobs_lock = threading.Lock()
@@ -140,6 +245,35 @@ def run_job(job_id: str, account: str, topic: str | None, steps: str):
 @app.get("/api/health")
 def health():
     return {"ok": True, "render_video": RENDER_VIDEO, "pipeline_dir": str(PIPELINE_DIR)}
+
+
+@app.post("/api/login")
+def login(body: dict):
+    """校验访问密码，成功下发会话 Cookie。"""
+    if not APP_PASSWORD:
+        return {"ok": True, "open": True}
+    pw = body.get("password", "")
+    if pw != APP_PASSWORD:
+        raise HTTPException(401, "密码错误")
+    token = secrets.token_hex(16)
+    _VALID_TOKEN["value"] = token
+    resp = JSONResponse({"ok": True})
+    resp.set_cookie(
+        _AUTH_COOKIE, token,
+        httponly=True, path="/",
+        max_age=60 * 60 * 24 * 30,
+        samesite="lax",
+    )
+    return resp
+
+
+@app.post("/api/logout")
+def logout():
+    """注销当前会话。"""
+    _VALID_TOKEN["value"] = None
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(_AUTH_COOKIE, path="/")
+    return resp
 
 
 @app.get("/api/accounts")
