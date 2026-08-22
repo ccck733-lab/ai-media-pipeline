@@ -1,9 +1,44 @@
-# 部署 AI 自媒体控制台到 Cloudflare Pages
+# 部署 AI 自媒体控制台到 Cloudflare
 
-本控制台是**纯静态站点**（`web-console/` 目录），无构建步骤，可直接上传到 Cloudflare Pages。
-它前端是纯静态站（命令生成 + 配置查看 + 流程参考）；接上路径 D 的后端后，控制台即可在线上一键执行整条流水线。
+## ★ 当前生效方案：cloudflared 隧道 → 根域名 loveshop.us.ci（2026-08-22 验证通过）
 
-> 前提：你的 Cloudflare API token（cfat_3DSy…）此前失效，自动化部署被卡，故走**面板手动上传**路径（无需 token）。
+控制台要"在线一键生成视频"必须连后端（FastAPI + Python + Remotion + ffmpeg，跑在本地 Mac）。
+Cloudflare Pages 跑不了这个后端，所以**用 cloudflared 隧道把根域名指到本地后端**，整站（界面+API）都在线。
+
+> 前提：wrangler 的 OAuth 已登录（`wrangler whoami` 可见 ccck733@gmail.com）；`~/.cloudflared/` 有 cert.pem 与隧道凭证。
+
+### 已完成的操作（可复现）
+1. 备份电商站源码：`cp -R <loveshop-grid> ~/backups/loveshop-grid-backup-20260822`
+2. 写 `~/.cloudflared/config.yml`：
+   ```yaml
+   tunnel: 95c740e4-22f8-45b5-862d-49d638c1f817
+   credentials-file: /Users/like/.cloudflared/95c740e4-22f8-45b5-862d-49d638c1f817.json
+   ingress:
+     - hostname: loveshop.us.ci
+       service: http://localhost:8000
+     - hostname: www.loveshop.us.ci
+       service: http://localhost:8000
+     - service: http_status:404
+   ```
+3. DNS 覆盖（原 Pages 的 CNAME 被替换）：
+   ```bash
+   cloudflared tunnel route dns -f ai-media-api loveshop.us.ci
+   cloudflared tunnel route dns -f ai-media-api www.loveshop.us.ci
+   ```
+4. 启动隧道：`cloudflared tunnel --config ~/.cloudflared/config.yml run ai-media-api`
+5. 启动后端：`cd ai-media-pipeline && ./run-local-api.sh`（或 uvicorn，需 `RENDER_VIDEO=1` 和 Chrome 路径）
+6. 验证：`https://loveshop.us.ci` 返回登录页；密码 `victory`；`/api/accounts` 未登录 401；公网提交选题生成出 `output.mp4`。
+
+### 关键约束
+- **后端与隧道都跑在本地 Mac**，Mac 睡眠/关机/进程退出 → 网站 503。需长期挂着请配 launchd 自动拉起（见末尾）。
+- 根域名已不再服务 loveshop-grid 电商站（源码已备份，可在 Cloudflare 面板把 Pages 项目重新绑回 `loveshop.us.ci` 回滚）。
+
+---
+
+本控制台前端由 FastAPI 后端直接托管 `web-console/`（同源 `const API=""`），无构建步骤。
+路径 A~D 是历史候选方案（静态 Pages / Git 部署），因后端需在本地运行，最终落地为上面的隧道方案。
+
+> 旧前提：Cloudflare API token（cfat_3DSy…）失效导致面板上传被卡；隧道方案用 cloudflared 凭证，不依赖该 token。
 
 ---
 
@@ -143,3 +178,49 @@ python3 -m http.server 4173
 ## 更新上线
 
 改完 `index.html` / `assets/*` 后，回 Cloudflare 面板该 Pages 项目 → **Upload assets** 重新拖入 `web-console/` 文件夹即可（或连 Git 后自动构建）。
+
+---
+
+## 开机自启（launchd）：让站点在 Mac 重启/登录后自动恢复
+
+隧道和后端都跑在本地，Mac 重启后会停。用 launchd 让两者随登录自动拉起（避免网站 503）。
+
+### 1) 后端 `~/Library/LaunchAgents/com.loveshop.aimedia.plist`
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.loveshop.aimedia</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/like/.workbuddy/binaries/python/envs/default/bin/python</string>
+    <string>-m</string><string>uvicorn</string>
+    <string>api.server:app</string>
+    <string>--host</string><string>0.0.0.0</string><string>--port</string><string>8000</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>RENDER_VIDEO</key><string>1</string>
+    <key>REMOTION_CHROME_EXECUTABLE_PATH</key><string>/Applications/Google Chrome.app/Contents/MacOS/Google Chrome</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline/launchd-backend.log</string>
+  <key>StandardErrorPath</key><string>/Users/like/WorkBuddy/2026-08-21-10-49-01/ai-media-pipeline/launchd-backend.log</string>
+</dict>
+</plist>
+```
+
+### 2) 隧道 `~/Library/LaunchAgents/com.loveshop.tunnel.plist`
+`ProgramArguments` 改为：
+`/opt/homebrew/bin/cloudflared` `tunnel` `--config` `/Users/like/.cloudflared/config.yml` `run` `ai-media-api`
+其余同上（`RunAtLoad`/`KeepAlive`/`StandardOutPath` 指向 `launchd-tunnel.log`）。
+
+### 3) 加载
+```bash
+launchctl load ~/Library/LaunchAgents/com.loveshop.aimedia.plist
+launchctl load ~/Library/LaunchAgents/com.loveshop.tunnel.plist
+# 卸载：launchctl unload ~/Library/LaunchAgents/com.loveshop.*.plist
+```
+> 加载前请先停掉手动起的 uvicorn / cloudflared，避免 8000 端口或隧道重复连接冲突。
