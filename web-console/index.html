@@ -527,25 +527,6 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ===== Publish ===== */
-.publish-section { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; }
-.publish-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-@media (max-width: 640px) { .publish-grid { grid-template-columns: 1fr; } }
-.publish-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.pc-head { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; }
-.pc-icon { font-size: 16px; }
-.pc-status { margin-left: auto; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
-.pc-status.off { background: rgba(251, 113, 133, 0.15); color: var(--red); }
-.pc-status.on { background: rgba(52, 211, 153, 0.15); color: var(--green); }
-.pc-text { width: 100%; min-height: 64px; resize: vertical; padding: 10px 12px; background: rgba(0, 0, 0, 0.3);
-  border: 1px solid var(--border); border-radius: 9px; color: var(--ink); font-size: 12.5px;
-  font-family: var(--font); outline: none; line-height: 1.5; }
-.pc-text:focus { border-color: var(--brand); }
-.pc-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.pc-actions .dl-btn { padding: 7px 12px; font-size: 12px; }
-.pc-note { font-size: 11px; color: var(--muted); line-height: 1.5; }
-.publish-msg { font-size: 12px; margin-top: 2px; min-height: 16px; }
-.publish-msg.ok { color: var(--green); }
-.publish-msg.err { color: var(--red); }
 
 /* ===== Footer ===== */
 .footer {
@@ -615,10 +596,6 @@ body {
       <div class="card-title">成片预览</div>
       <video class="result-video" id="result-video" controls playsinline></video>
       <div class="result-actions" id="result-actions"></div>
-      <div class="publish-section" id="publish-section">
-        <div class="card-title">一键发布到平台</div>
-        <div class="publish-grid" id="publish-grid"></div>
-      </div>
       <div class="artifacts-toggle" id="artifacts-toggle">
         <span class="arrow">▸</span> 展开全部产物
       </div>
@@ -836,7 +813,6 @@ function showResult(job) {
   dl.textContent = "⬇ 下载 MP4";
   actions.appendChild(dl);
 
-  renderPublish(job);
 
   const list = document.getElementById("artifacts-list");
   list.innerHTML = "";
@@ -857,93 +833,6 @@ function showResult(job) {
   };
 }
 
-// ===== Publish (抖音 / 小红书) =====
-function genCaption(platform, topic) {
-  const t = topic || "AI 精选";
-  if (platform === "douyin") {
-    return `#${t} #知识科普 #干货分享 #年轻人必看 #AI创作`;
-  }
-  return `${t}｜一文讲透💡\n\n#${t} #知识科普 #自我提升 #干货分享 #笔记灵感`;
-}
-
-function renderPublish(job) {
-  const grid = document.getElementById("publish-grid");
-  grid.innerHTML = "";
-  const topic = job.topic || "";
-  const platforms = [
-    { id: "douyin", name: "抖音", icon: "🎵", note: "已接入开放平台，可真·一键发布到已授权账号。" },
-    { id: "xiaohongshu", name: "小红书", icon: "📕", note: "公开发布API未对普通开发者开放；点「一键发布」会尝试，失败请用复制文案+下载，到创作者中心手动发。" },
-  ];
-  platforms.forEach(p => {
-    const card = document.createElement("div");
-    card.className = "publish-card";
-    card.innerHTML = `
-      <div class="pc-head"><span class="pc-icon">${p.icon}</span><span>${p.name}</span>
-        <span class="pc-status off" id="pc-status-${p.id}">检测中</span></div>
-      <textarea class="pc-text" id="pc-text-${p.id}">${genCaption(p.id, topic)}</textarea>
-      <div class="pc-actions">
-        <button class="dl-btn" id="pc-connect-${p.id}" onclick="connectPlatform('${p.id}')">连接账号</button>
-        <button class="dl-btn primary" onclick="publishPlatform('${p.id}')">一键发布</button>
-        <button class="dl-btn" onclick="copyCaption('${p.id}')">复制文案</button>
-      </div>
-      <div class="pc-note">${p.note}</div>
-      <div class="publish-msg" id="pc-msg-${p.id}"></div>
-    `;
-    grid.appendChild(card);
-  });
-  refreshPublishStatus();
-}
-
-async function refreshPublishStatus() {
-  try {
-    const s = await api("/api/distribution/status");
-    ["douyin", "xiaohongshu"].forEach(p => {
-      const el = document.getElementById("pc-status-" + p);
-      if (!el) return;
-      const connected = s[p] && s[p].connected;
-      el.textContent = connected ? "已连接" : "未连接";
-      el.className = "pc-status " + (connected ? "on" : "off");
-      const btn = document.getElementById("pc-connect-" + p);
-      if (btn) btn.textContent = connected ? "重新连接" : "连接账号";
-    });
-  } catch {}
-}
-
-function connectPlatform(platform) {
-  const w = window.open("", "_blank");
-  api(`/api/distribution/oauth/start?platform=${platform}`).then(d => {
-    if (d.url) {
-      w.location.href = d.url;
-      setTimeout(refreshPublishStatus, 4000);
-      setTimeout(refreshPublishStatus, 14000);
-    } else { w.close(); }
-  }).catch(e => { w.close(); alert("连接失败: " + e.message); });
-}
-
-async function publishPlatform(platform) {
-  if (!currentJobId) { alert("请先生成一个视频"); return; }
-  const text = document.getElementById("pc-text-" + platform).value;
-  const msg = document.getElementById("pc-msg-" + platform);
-  msg.textContent = "发布中…"; msg.className = "publish-msg";
-  try {
-    const d = await api("/api/distribution/publish", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ platform, job_id: currentJobId, text }),
-    });
-    if (d.ok) { msg.textContent = "✅ 已提交发布"; msg.className = "publish-msg ok"; }
-    else { msg.textContent = "⚠️ " + (d.reason || "发布未成功") + "（请用复制文案+下载手动发布）"; msg.className = "publish-msg err"; }
-  } catch (e) {
-    msg.textContent = "❌ " + e.message; msg.className = "publish-msg err";
-  }
-}
-
-function copyCaption(platform) {
-  const t = document.getElementById("pc-text-" + platform).value;
-  navigator.clipboard.writeText(t).then(() => {
-    const msg = document.getElementById("pc-msg-" + platform);
-    msg.textContent = "已复制文案"; msg.className = "publish-msg ok";
-  }).catch(() => alert("复制失败，请手动选择"));
-}
 
 // ===== History =====
 async function loadHistory() {

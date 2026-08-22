@@ -135,7 +135,7 @@ LOGIN_HTML = """<!DOCTYPE html>
 
 # ===== 鉴权中间件：网关整站 =====
 _PUBLIC_PATHS = {"/api/health", "/api/login", "/api/logout", "/login",
-                 "/api/distribution/oauth/callback", "/favicon.ico"}
+                 "/favicon.ico"}
 
 
 @app.middleware("http")
@@ -431,195 +431,26 @@ def _multipart_post(url: str, file_path: str, headers: dict, fields: dict | None
         return json.loads(resp.read().decode("utf-8"))
 
 
-def _douyin_exchange(code: str, creds: dict, redirect_uri: str) -> dict:
-    url = "https://open.douyin.com/oauth/access_token/"
-    body = urllib.parse.urlencode({
-        "client_key": creds["client_key"], "client_secret": creds["client_secret"],
-        "code": code, "grant_type": "authorization_code",
-    }).encode()
-    d = _http_json(url, method="POST",
-                   headers={"Content-Type": "application/x-www-form-urlencoded"}, data=body)
-    return d.get("data", d)
 
 
-def _douyin_refresh(platform: str, creds: dict) -> dict | None:
-    tok = _load_token(platform)
-    if not tok or not tok.get("refresh_token"):
-        return None
-    url = "https://open.douyin.com/oauth/refresh_token/"
-    body = urllib.parse.urlencode({
-        "client_key": creds["client_key"], "client_secret": creds["client_secret"],
-        "refresh_token": tok["refresh_token"], "grant_type": "refresh_token",
-    }).encode()
-    try:
-        d = _http_json(url, method="POST",
-                       headers={"Content-Type": "application/x-www-form-urlencoded"}, data=body)
-        data = d.get("data", d)
-        if data.get("error_code", 0) == 0 and data.get("access_token"):
-            tok.update({
-                "access_token": data["access_token"],
-                "refresh_token": data.get("refresh_token", tok["refresh_token"]),
-                "expires_in": data.get("expires_in", tok.get("expires_in", 7200)),
-                "saved_at": time.time(),
-            })
-            _save_token(platform, tok)
-    except Exception:
-        pass
-    return _load_token(platform)
 
 
-def _ensure_douyin_token(platform: str, creds: dict) -> dict | None:
-    tok = _load_token(platform)
-    if not tok:
-        return None
-    expires_in = int(tok.get("expires_in") or 7200)
-    saved_at = tok.get("saved_at") or 0
-    if time.time() - saved_at < expires_in - 300:
-        return tok
-    return _douyin_refresh(platform, creds)
 
 
-def _xhs_exchange(code: str, creds: dict, redirect_uri: str) -> dict:
-    url = "https://www.xiaohongshu.com/oauth/token"
-    body = urllib.parse.urlencode({
-        "client_id": creds["client_key"], "client_secret": creds["client_secret"],
-        "code": code, "grant_type": "authorization_code", "redirect_uri": redirect_uri,
-    }).encode()
-    d = _http_json(url, method="POST",
-                   headers={"Content-Type": "application/x-www-form-urlencoded"}, data=body)
-    data = d.get("data", d)
-    return {"access_token": data.get("access_token"), "refresh_token": data.get("refresh_token"),
-            "open_id": data.get("open_id") or data.get("user_id"), "saved_at": time.time()}
 
 
-def _xhs_publish(video_path: str, tok: dict, text: str) -> dict:
-    """仅对白名单合作方有效；普通开发者此处会 403。不实现逆向 x-s 签名（违反条款且易失效）。"""
-    creds = _load_platform_creds().get("xiaohongshu", {})
-    headers = {
-        "x-xhs-open-client-id": creds.get("client_key", ""),
-        "x-xhs-open-api-version": "1.0",
-        "Authorization": f"Bearer {tok.get('access_token', '')}",
-        "Content-Type": "application/json",
-    }
-    up = _multipart_post("https://open.xiaohongshu.com/api/v1/upload/video", video_path, headers)
-    video_id = (up.get("data") or {}).get("video_id") or up.get("video_id")
-    if not video_id:
-        raise RuntimeError(f"小红书视频上传未返回 video_id: {up}")
-    body = json.dumps({
-        "note": {
-            "title": (text or "AI 生成笔记")[:20],
-            "desc": text,
-            "video": {"video_id": video_id},
-            "source": "creative_tool",
-        }
-    }).encode()
-    return _http_json("https://open.xiaohongshu.com/api/v1/note/publish",
-                      method="POST", headers=headers, data=body)
 
 
-@app.get("/api/distribution/oauth/start")
-def oauth_start(platform: str, request: Request):
-    creds = _load_platform_creds().get(platform)
-    if not creds or not creds.get("client_key"):
-        raise HTTPException(400, f"未配置 {platform} 开放平台凭证（config/platforms.json 或环境变量）")
-    state = secrets.token_hex(16)
-    redirect_uri = str(request.base_url).rstrip("/") + "/api/distribution/oauth/callback"
-    if platform == "douyin":
-        auth_url = "https://open.douyin.com/platform/oauth/connect/?" + urllib.parse.urlencode({
-            "client_key": creds["client_key"], "response_type": "code",
-            "scope": "video.create,video.publish", "redirect_uri": redirect_uri, "state": state,
-        })
-    elif platform == "xiaohongshu":
-        auth_url = "https://www.xiaohongshu.com/oauth/authorize?" + urllib.parse.urlencode({
-            "client_id": creds["client_key"], "response_type": "code",
-            "scope": "user_info,note_publish", "redirect_uri": redirect_uri, "state": state,
-        })
-    else:
-        raise HTTPException(400, "未知平台")
-    _OAUTH_STATE[platform] = state
-    return {"url": auth_url}
 
 
-@app.get("/api/distribution/oauth/callback")
-def oauth_callback(platform: str, request: Request, code: str = "", state: str = ""):
-    creds = _load_platform_creds().get(platform)
-    if not creds:
-        return HTMLResponse("<h2>未配置开放平台凭证</h2><p>请在 config/platforms.json 填入 client_key/secret。</p>")
-    redirect_uri = str(request.base_url).rstrip("/") + "/api/distribution/oauth/callback"
-    try:
-        if platform == "douyin":
-            data = _douyin_exchange(code, creds, redirect_uri)
-            if data.get("error_code", 0) != 0:
-                return HTMLResponse(f"<h2>授权失败</h2><pre>{data}</pre>")
-            tok = {"access_token": data.get("access_token"), "refresh_token": data.get("refresh_token"),
-                   "open_id": data.get("open_id"), "expires_in": data.get("expires_in"), "saved_at": time.time()}
-        elif platform == "xiaohongshu":
-            tok = _xhs_exchange(code, creds, redirect_uri)
-        else:
-            return HTMLResponse("<h2>未知平台</h2>")
-        _save_token(platform, tok)
-    except Exception as e:  # noqa
-        return HTMLResponse(f"<h2>授权异常</h2><pre>{e}</pre>")
-    return HTMLResponse("<h2>✅ 授权成功</h2><p>可关闭此页面，返回控制台点击「一键发布」。</p>")
 
 
-@app.get("/api/distribution/status")
-def dist_status():
-    out = {}
-    for p in ("douyin", "xiaohongshu"):
-        t = _load_token(p)
-        out[p] = {"connected": bool(t and t.get("access_token"))}
-    return out
 
 
-@app.post("/api/distribution/publish")
-def dist_publish(body: dict):
-    platform = body.get("platform")
-    job_id = body.get("job_id")
-    text = body.get("text") or ""
-    if not job_id or job_id not in jobs:
-        raise HTTPException(400, "job 不存在")
-    j = jobs[job_id]
-    videos = j.get("videos") or []
-    if not videos:
-        raise HTTPException(400, "该任务无视频产物")
-    vpath = (WORKSPACE_DIR / videos[0]["path"]).resolve()
-    if not vpath.is_file():
-        raise HTTPException(400, "视频文件缺失")
-    creds = _load_platform_creds().get(platform)
-    tok = _load_token(platform)
-    if not creds or not tok:
-        raise HTTPException(400, f"{platform} 未连接账号，请先点「连接账号」")
-    if platform == "douyin":
-        _ensure_douyin_token(platform, creds)
-        tok = _load_token(platform)
-        up = _douyin_upload(vpath, tok["open_id"], tok["access_token"])
-        if up.get("error_code", 0) != 0:
-            raise HTTPException(502, f"抖音上传失败: {up}")
-        created = _douyin_create(tok["open_id"], tok["access_token"],
-                                 up.get("video", {}).get("video_id"), text)
-        return {"ok": True, "platform": "douyin", "result": created}
-    elif platform == "xiaohongshu":
-        try:
-            res = _xhs_publish(str(vpath), tok, text)
-            return {"ok": True, "platform": "xiaohongshu", "result": res}
-        except Exception as e:  # noqa
-            return {"ok": False, "platform": "xiaohongshu",
-                    "reason": "小红书公开笔记发布API未对普通开发者开放（仅白名单合作方可用）。请使用发布助手：复制文案+下载，到创作者中心手动发布。",
-                    "detail": str(e)}
-    raise HTTPException(400, "未知平台")
 
 
-def _douyin_upload(video_path, open_id: str, access_token: str) -> dict:
-    url = f"https://open.douyin.com/video/upload/?open_id={open_id}"
-    return _multipart_post(url, str(video_path), {"access-token": access_token})
 
 
-def _douyin_create(open_id: str, access_token: str, video_id: str, text: str) -> dict:
-    url = f"https://open.douyin.com/video/create/?open_id={open_id}"
-    body = json.dumps({"video_id": video_id, "text": text}).encode()
-    return _http_json(url, method="POST",
-                      headers={"access-token": access_token, "Content-Type": "application/json"}, data=body)
 
 
 # 在本地运行时，把前端控制台也一并托管在根路径，这样直接访问 http://localhost:8000 即可使用。
